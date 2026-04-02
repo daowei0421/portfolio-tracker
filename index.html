@@ -43,9 +43,20 @@
     .grid3 { grid-template-columns: 1fr 1fr; }
     .row input { width: 100px; }
   }
+  #lock-screen { position:fixed; inset:0; background:#f5f4f0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; gap:16px; }
+  #lock-screen h2 { font-size:16px; font-weight:500; color:#1a1a18; }
+  #lock-screen input { font-size:18px; padding:10px 16px; border:0.5px solid rgba(0,0,0,0.2); border-radius:8px; background:#fff; color:#1a1a18; text-align:center; width:160px; letter-spacing:0.2em; outline:none; }
+  #lock-screen input:focus { border-color:#185FA5; }
+  #lock-screen .err { font-size:12px; color:#A32D2D; min-height:16px; }
 </style>
 </head>
 <body>
+
+<div id="lock-screen">
+  <h2>73 配置追蹤器</h2>
+  <input type="password" id="pwd-input" placeholder="請輸入密碼" maxlength="20" autofocus>
+  <div class="err" id="pwd-err"></div>
+</div>
 
 <h1>73 配置追蹤器 <span class="save-badge" id="save-badge">已儲存</span></h1>
 
@@ -221,6 +232,25 @@
 </div>
 
 <script>
+(function() {
+  const PWD = '4358';
+  const lock = document.getElementById('lock-screen');
+  const input = document.getElementById('pwd-input');
+  const err = document.getElementById('pwd-err');
+  if (sessionStorage.getItem('unlocked') === '1') { lock.style.display = 'none'; return; }
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      if (input.value === PWD) {
+        sessionStorage.setItem('unlocked', '1');
+        lock.style.display = 'none';
+      } else {
+        err.textContent = '密碼錯誤';
+        input.value = '';
+      }
+    }
+  });
+})();
+
 const KEYS = ['qty662', 'qty670', 'p662', 'p670', 'loan1', 'rate1', 'loan2', 'rate2', 'pledge_amt', 'pledge_rate'];
 
 function exportData() {
