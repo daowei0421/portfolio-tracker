@@ -308,10 +308,8 @@ async function fetchPrices() {
     let got = [];
 
     for (let i = 0; i < symbols.length; i++) {
-      const res = await fetch(
-        'https://query1.finance.yahoo.com/v8/finance/chart/' + symbols[i] + '?interval=1d&range=1d',
-        { headers: { 'Accept': 'application/json' } }
-      );
+      const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + symbols[i] + '?interval=1d&range=1d';
+      const res = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(yahooUrl));
       if (!res.ok) throw new Error('無法連線');
       const data = await res.json();
       const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
