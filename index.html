@@ -218,6 +218,24 @@
 </div>
 
 <div class="section">
+  <div class="section-title">每月利息總計</div>
+  <div class="grid3">
+    <div class="metric">
+      <div class="metric-label">房貸月利息</div>
+      <div class="metric-value" id="summary_loan">NT$0</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">質押月利息</div>
+      <div class="metric-value" id="summary_pledge">NT$0</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">合計月利息</div>
+      <div class="metric-value" id="summary_total" style="color:#185FA5;font-size:17px;">NT$0</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
   <div class="section-title">資料備份</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <button onclick="exportData()" style="flex:1;font-size:13px;padding:8px 12px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.2);background:#f5f4f0;color:#1a1a18;cursor:pointer;">匯出備份</button>
@@ -459,6 +477,10 @@ function calc() {
     palert.className = 'alert-box alert-danger';
     palert.textContent = '已超過 20% 上限！目前 ' + pledge_pct.toFixed(1) + '%，請立即還款以降低維持率風險';
   }
+
+  document.getElementById('summary_loan').textContent = fmt(monthly);
+  document.getElementById('summary_pledge').textContent = fmt(pledge_monthly);
+  document.getElementById('summary_total').textContent = fmt(monthly + pledge_monthly);
 }
 
 load();
