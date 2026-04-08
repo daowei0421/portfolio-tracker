@@ -618,7 +618,7 @@ function calc() {
   document.getElementById('pledge_annual').textContent = fmt(pledge_annual);
 
   const bar = document.getElementById('pledge_bar');
-  bar.style.width = Math.min(pledge_pct / 25 * 100, 100) + '%';
+  bar.style.width = Math.min(pledge_pct, 100) + '%';
   const palert = document.getElementById('pledge-alert');
   if (pledge_amt === 0) {
     bar.style.background = '#185FA5'; palert.className = 'alert-box alert-ok'; palert.textContent = '目前無質押借貸';
@@ -658,7 +658,7 @@ function calc() {
     const col_pct = pledge_amt / pledged_val * 100;  // 借出 / 擔保品
     const col_safe_limit = pledged_val * 0.6;         // 安全上限 60%
     const col_need = Math.max(0, pledge_amt - col_safe_limit); // 超過需補入金額
-    const barW = Math.min(col_pct / 80 * 100, 100);  // 進度條以 80% 為滿
+    const barW = Math.min(col_pct, 100);  // 進度條直接對應實際 %
 
     document.getElementById('collateral_pct').textContent = col_pct.toFixed(1) + '%';
     document.getElementById('collateral_pct2').textContent = col_pct.toFixed(1) + '%';
