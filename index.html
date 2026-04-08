@@ -188,10 +188,9 @@
     <div class="row"><label>投資增貸餘額（萬）</label><input type="number" id="loan2" value="230" oninput="calc(); save()"></div>
     <div class="row"><label>增貸利率（%）</label><input type="number" id="rate2" value="2.7" step="0.01" oninput="calc(); save()"></div>
     <div class="divider"></div>
-    <div class="grid3">
+    <div class="grid2">
       <div class="metric"><div class="metric-label">每月利息總計</div><div class="metric-value" id="monthly_interest">NT$0</div></div>
       <div class="metric"><div class="metric-label">年化利息總支出</div><div class="metric-value" id="annual_interest">NT$0</div></div>
-      <div class="metric"><div class="metric-label">利息 vs 月薪比</div><div class="metric-value" id="interest_ratio">0%</div></div>
     </div>
   </div>
 
@@ -255,6 +254,7 @@
       <div class="metric"><div class="metric-label">房貸月利息</div><div class="metric-value" id="summary_loan">NT$0</div></div>
       <div class="metric"><div class="metric-label">質押月利息</div><div class="metric-value" id="summary_pledge">NT$0</div></div>
       <div class="metric"><div class="metric-label">合計月利息</div><div class="metric-value" id="summary_total" style="color:#185FA5;font-size:17px;">NT$0</div></div>
+      <div class="metric"><div class="metric-label">利息 vs 月薪比</div><div class="metric-value" id="interest_ratio">0%</div></div>
     </div>
   </div>
 
@@ -601,7 +601,6 @@ function calc() {
   const monthly_salary = parseFloat(document.getElementById('monthly_salary').value) || 150000;
   document.getElementById('monthly_interest').textContent = fmt(monthly);
   document.getElementById('annual_interest').textContent = fmt(annual);
-  document.getElementById('interest_ratio').textContent = (monthly / monthly_salary * 100).toFixed(1) + '%';
 
   const pledge_amt = (parseFloat(document.getElementById('pledge_amt').value) || 0) * 10000;
   const pledge_rate = parseFloat(document.getElementById('pledge_rate').value) || 0;
@@ -634,9 +633,11 @@ function calc() {
     palert.textContent = '已超過 20% 上限！目前 ' + pledge_pct.toFixed(1) + '%，請立即還款以降低維持率風險';
   }
 
+  const total_monthly = monthly + pledge_monthly;
   document.getElementById('summary_loan').textContent = fmt(monthly);
   document.getElementById('summary_pledge').textContent = fmt(pledge_monthly);
-  document.getElementById('summary_total').textContent = fmt(monthly + pledge_monthly);
+  document.getElementById('summary_total').textContent = fmt(total_monthly);
+  document.getElementById('interest_ratio').textContent = (total_monthly / monthly_salary * 100).toFixed(1) + '%';
 
   // ── 擔保品成數計算（以質押中 00662 為基礎）──
   const pledged_val = s662 * p662;  // 質押中 00662 市值
