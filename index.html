@@ -251,16 +251,12 @@
     <div class="section-title">新增質押紀錄</div>
     <div class="row"><label>日期</label><input type="date" id="rec_date"></div>
     <div class="row"><label>標的</label>
-      <select id="rec_stock"><option value="662">00662</option><option value="670">00670L</option></select>
+      <select id="rec_stock" onchange="syncRecPrice()"><option value="662">00662</option><option value="670">00670L</option></select>
     </div>
     <div class="row"><label>股數（股）</label><input type="number" id="rec_shares" min="1" placeholder="0"></div>
     <div class="row" style="border-bottom:none;"><label>轉出當日股價</label>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <input type="number" id="rec_price" step="0.01" placeholder="0.00" style="width:90px;">
-        <button onclick="fillRecPrice()" class="btn btn-small" id="rec-fetch-btn">帶入當日</button>
-      </div>
+      <input type="number" id="rec_price" step="0.01" placeholder="0.00">
     </div>
-    <div id="rec-status" style="font-size:11px;color:#73726c;margin:6px 0 10px;min-height:16px;"></div>
     <button onclick="addPledgeRecord()" class="btn btn-primary" style="width:100%;">新增紀錄</button>
     <div id="rec-err" style="font-size:12px;color:#A32D2D;margin-top:6px;min-height:16px;"></div>
   </div>
@@ -371,6 +367,13 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   btn.classList.add('active');
+  if (name === 'pledge-log') syncRecPrice();
+}
+
+function syncRecPrice() {
+  const stock = document.getElementById('rec_stock').value;
+  const price = parseFloat(document.getElementById(stock === '662' ? 'p662' : 'p670').value) || 0;
+  if (price > 0) document.getElementById('rec_price').value = price.toFixed(2);
 }
 
 // ── localStorage keys（for export/import only）──
@@ -438,31 +441,6 @@ function renderPledgeRecords() {
   });
   html += '</tbody></table>';
   el.innerHTML = html;
-}
-
-// ── 股價抓取（質押紀錄用）──
-async function fillRecPrice() {
-  const stock = document.getElementById('rec_stock').value;
-  const btn = document.getElementById('rec-fetch-btn');
-  const status = document.getElementById('rec-status');
-  const symbol = stock === '662' ? '00662.TW' : '00670L.TW';
-  const name = 'stock' === '662' ? '00662' : '00670L';
-  btn.textContent = '抓取中...'; btn.disabled = true; status.textContent = '';
-  try {
-    const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + symbol + '?interval=1d&range=1d';
-    const res = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(yahooUrl));
-    if (!res.ok) throw new Error('無法連線');
-    const data = await res.json();
-    const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-    if (!price) throw new Error('無法取得價格');
-    document.getElementById('rec_price').value = price.toFixed(2);
-    status.textContent = '當日股價：' + price.toFixed(2);
-    status.style.color = '#27500A';
-  } catch(e) {
-    status.textContent = '抓取失敗，請手動輸入（' + e.message + '）';
-    status.style.color = '#A32D2D';
-  }
-  btn.textContent = '帶入當日'; btn.disabled = false;
 }
 
 // ── 主要股價抓取 ──
