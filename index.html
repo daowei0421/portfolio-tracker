@@ -197,17 +197,19 @@
 
   <div class="section">
     <div class="section-title">質押借貸追蹤</div>
-    <div class="row"><label>目前質押借貸金額（萬）</label><input type="number" id="pledge_amt" value="0" oninput="calc(); save()"></div>
+    <div class="row"><label>目前借出金額（萬）</label><input type="number" id="pledge_amt" value="0" oninput="calc(); save()"></div>
     <div class="row"><label>質押利率（%）</label><input type="number" id="pledge_rate" value="2.88" step="0.01" oninput="calc(); save()"></div>
+
     <div class="divider"></div>
+    <div class="section-title" style="margin-bottom:8px;">以全部 00662 計算可借上限</div>
     <div class="grid3">
-      <div class="metric"><div class="metric-label">00662 市值</div><div class="metric-value" id="val662_m">NT$0</div></div>
-      <div class="metric"><div class="metric-label">可質押上限（20%）</div><div class="metric-value" id="pledge_max">NT$0</div></div>
+      <div class="metric"><div class="metric-label">00662 總市值</div><div class="metric-value" id="val662_m">NT$0</div></div>
+      <div class="metric"><div class="metric-label">可借上限（20%）</div><div class="metric-value" id="pledge_max">NT$0</div></div>
       <div class="metric"><div class="metric-label">剩餘可借空間</div><div class="metric-value" id="pledge_remain">NT$0</div></div>
     </div>
-    <div class="pledge-meter" style="margin-top:12px;">
+    <div class="pledge-meter" style="margin-top:8px;">
       <div style="display:flex;justify-content:space-between;font-size:11px;color:#73726c;margin-bottom:4px;">
-        <span>借貸成數</span><span style="font-weight:500;" id="pledge_pct2">0%</span>
+        <span>借貸成數（對全部 00662）</span><span style="font-weight:500;" id="pledge_pct2">0%</span>
       </div>
       <div class="pledge-line-wrap">
         <div class="pledge-track"><div class="pledge-fill" id="pledge_bar" style="width:0%;background:#185FA5;"></div></div>
@@ -218,6 +220,29 @@
       <div class="pledge-limit-label">20% 警戒線</div>
     </div>
     <div id="pledge-alert" class="alert-box alert-ok">目前無質押借貸</div>
+
+    <div class="divider"></div>
+    <div class="section-title" style="margin-bottom:8px;">質押股票擔保品成數（元大證金）</div>
+    <div class="grid3">
+      <div class="metric"><div class="metric-label">質押中 00662 市值</div><div class="metric-value" id="pledged_val">NT$0</div></div>
+      <div class="metric"><div class="metric-label">借出 / 擔保品</div><div class="metric-value" id="collateral_pct" style="color:#185FA5;">0%</div></div>
+      <div class="metric"><div class="metric-label">需補擔保品</div><div class="metric-value" id="collateral_need">NT$0</div></div>
+    </div>
+    <div class="pledge-meter" style="margin-top:8px;">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#73726c;margin-bottom:4px;">
+        <span>擔保品使用率</span><span style="font-weight:500;" id="collateral_pct2">0%</span>
+      </div>
+      <div class="pledge-line-wrap">
+        <div class="pledge-track"><div class="pledge-fill" id="collateral_bar" style="width:0%;background:#185FA5;"></div></div>
+        <div style="position:relative;height:0;">
+          <div style="position:absolute;top:-14px;left:calc(60% - 1px);width:2px;height:14px;background:#A32D2D;"></div>
+        </div>
+      </div>
+      <div class="pledge-limit-label">60% 警戒線</div>
+    </div>
+    <div id="collateral-alert" class="alert-box alert-ok">尚無質押紀錄</div>
+
+    <div class="divider"></div>
     <div class="grid2" style="margin-top:10px;">
       <div class="metric"><div class="metric-label">質押月利息</div><div class="metric-value" id="pledge_monthly">NT$0</div></div>
       <div class="metric"><div class="metric-label">質押年利息</div><div class="metric-value" id="pledge_annual">NT$0</div></div>
@@ -612,6 +637,47 @@ function calc() {
   document.getElementById('summary_loan').textContent = fmt(monthly);
   document.getElementById('summary_pledge').textContent = fmt(pledge_monthly);
   document.getElementById('summary_total').textContent = fmt(monthly + pledge_monthly);
+
+  // ── 擔保品成數計算（以質押中 00662 為基礎）──
+  const pledged_val = s662 * p662;  // 質押中 00662 市值
+  const calert = document.getElementById('collateral-alert');
+  const cbar = document.getElementById('collateral_bar');
+
+  document.getElementById('pledged_val').textContent = fmt(pledged_val);
+
+  if (s662 === 0 || pledged_val === 0) {
+    document.getElementById('collateral_pct').textContent = '—';
+    document.getElementById('collateral_pct2').textContent = '—';
+    document.getElementById('collateral_need').textContent = '—';
+    cbar.style.width = '0%';
+    cbar.style.background = '#185FA5';
+    calert.className = 'alert-box alert-ok';
+    calert.textContent = '尚無質押紀錄';
+  } else {
+    const col_pct = pledge_amt / pledged_val * 100;  // 借出 / 擔保品
+    const col_safe_limit = pledged_val * 0.6;         // 安全上限 60%
+    const col_need = Math.max(0, pledge_amt - col_safe_limit); // 超過需補入金額
+    const barW = Math.min(col_pct / 80 * 100, 100);  // 進度條以 80% 為滿
+
+    document.getElementById('collateral_pct').textContent = col_pct.toFixed(1) + '%';
+    document.getElementById('collateral_pct2').textContent = col_pct.toFixed(1) + '%';
+    document.getElementById('collateral_need').textContent = col_need > 0 ? fmt(col_need) : '不需補入';
+    cbar.style.width = barW + '%';
+
+    if (col_pct < 50) {
+      cbar.style.background = '#185FA5';
+      calert.className = 'alert-box alert-ok';
+      calert.textContent = '擔保品充足（' + col_pct.toFixed(1) + '%），質押 ' + s662 + ' 股市值 ' + fmt(pledged_val) + '，借出 ' + fmt(pledge_amt);
+    } else if (col_pct < 60) {
+      cbar.style.background = '#BA7517';
+      calert.className = 'alert-box alert-warn';
+      calert.textContent = '擔保品接近警戒（' + col_pct.toFixed(1) + '%），留意股價下跌風險，考慮提前還款';
+    } else {
+      cbar.style.background = '#A32D2D';
+      calert.className = 'alert-box alert-danger';
+      calert.textContent = '擔保品不足！（' + col_pct.toFixed(1) + '%）建議補入擔保品約 ' + fmt(col_need) + ' 或部分還款';
+    }
+  }
 }
 
 // 初始化日期
