@@ -117,37 +117,27 @@
   <div class="section">
     <div class="section-title">持股輸入</div>
     <div class="row">
-      <label>00662 自有（股）</label>
+      <label>00662 持股（股）</label>
       <input type="number" id="qty662" value="0" min="0" oninput="calc(); save()">
-      <span class="val" id="v662_own">NT$0</span>
+      <span class="val" id="v662">NT$0</span>
     </div>
     <div class="row">
-      <label>00662 質押中（股）</label>
+      <label style="color:#185FA5;">　其中質押中（股）</label>
       <span class="pledged-tag" id="pledged662_label">0 股</span>
-      <span class="val" id="v662_pled">NT$0</span>
-    </div>
-    <div class="row" style="background:#f9f9f7;margin:4px -4px;padding:6px 4px;border-radius:6px;">
-      <label style="font-weight:500;color:#1a1a18;">00662 合計</label>
-      <span style="font-size:13px;font-weight:500;color:#185FA5;" id="total662_shares">0 股</span>
-      <span class="val" id="v662">NT$0</span>
+      <span class="val" id="v662_pled" style="color:#73726c;font-size:12px;">NT$0</span>
     </div>
 
     <div class="divider"></div>
 
     <div class="row">
-      <label>00670L 自有（股）</label>
+      <label>00670L 持股（股）</label>
       <input type="number" id="qty670" value="0" min="0" oninput="calc(); save()">
-      <span class="val" id="v670_own">NT$0</span>
+      <span class="val" id="v670">NT$0</span>
     </div>
     <div class="row">
-      <label>00670L 質押中（股）</label>
+      <label style="color:#BA7517;">　其中質押中（股）</label>
       <span class="pledged-tag" id="pledged670_label">0 股</span>
-      <span class="val" id="v670_pled">NT$0</span>
-    </div>
-    <div class="row" style="background:#f9f9f7;margin:4px -4px;padding:6px 4px;border-radius:6px;">
-      <label style="font-weight:500;color:#1a1a18;">00670L 合計</label>
-      <span style="font-size:13px;font-weight:500;color:#BA7517;" id="total670_shares">0 股</span>
-      <span class="val" id="v670">NT$0</span>
+      <span class="val" id="v670_pled" style="color:#73726c;font-size:12px;">NT$0</span>
     </div>
 
     <div class="divider"></div>
@@ -554,25 +544,19 @@ function calc() {
     else s670 += Number(r.shares);
   });
 
-  const own662 = parseFloat(document.getElementById('qty662').value) || 0;
-  const own670 = parseFloat(document.getElementById('qty670').value) || 0;
-  const total662 = own662 + s662;
-  const total670 = own670 + s670;
+  const q662 = parseFloat(document.getElementById('qty662').value) || 0;
+  const q670 = parseFloat(document.getElementById('qty670').value) || 0;
   const p662 = parseFloat(document.getElementById('p662').value) || 0;
   const p670 = parseFloat(document.getElementById('p670').value) || 0;
 
-  const val662 = total662 * p662;
-  const val670 = total670 * p670;
+  const val662 = q662 * p662;
+  const val670 = q670 * p670;
   const total = val662 + val670;
 
   document.getElementById('pledged662_label').textContent = s662 + ' 股';
   document.getElementById('pledged670_label').textContent = s670 + ' 股';
-  document.getElementById('total662_shares').textContent = total662 + ' 股';
-  document.getElementById('total670_shares').textContent = total670 + ' 股';
-  document.getElementById('v662_own').textContent = fmt(own662 * p662);
   document.getElementById('v662_pled').textContent = fmt(s662 * p662);
   document.getElementById('v662').textContent = fmt(val662);
-  document.getElementById('v670_own').textContent = fmt(own670 * p670);
   document.getElementById('v670_pled').textContent = fmt(s670 * p670);
   document.getElementById('v670').textContent = fmt(val670);
   document.getElementById('total').textContent = fmt(total);
