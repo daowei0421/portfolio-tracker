@@ -7,15 +7,22 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f4f0; color: #1a1a18; min-height: 100vh; padding: 1rem; }
-  h1 { font-size: 18px; font-weight: 500; margin-bottom: 1.5rem; color: #1a1a18; }
+  h1 { font-size: 18px; font-weight: 500; margin-bottom: 1rem; color: #1a1a18; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 1rem; }
+  .tab-btn { flex: 1; padding: 9px; font-size: 13px; border-radius: 8px; border: 0.5px solid rgba(0,0,0,0.15); background: #fff; color: #73726c; cursor: pointer; font-weight: 500; transition: all 0.15s; }
+  .tab-btn.active { background: #185FA5; color: #fff; border-color: #185FA5; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
   .section { background: #fff; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
   .section-title { font-size: 11px; font-weight: 500; color: #73726c; margin-bottom: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
   .row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 0.5px solid rgba(0,0,0,0.08); gap: 8px; flex-wrap: wrap; }
   .row:last-child { border-bottom: none; }
   .row label { font-size: 13px; color: #73726c; min-width: 140px; }
-  .row input { width: 130px; font-size: 13px; padding: 5px 8px; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 6px; background: #f5f4f0; color: #1a1a18; text-align: right; outline: none; }
-  .row input:focus { border-color: #185FA5; background: #fff; }
+  .row input[type=number], .row input[type=date] { width: 130px; font-size: 13px; padding: 5px 8px; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 6px; background: #f5f4f0; color: #1a1a18; text-align: right; outline: none; }
+  .row input[type=number]:focus, .row input[type=date]:focus { border-color: #185FA5; background: #fff; }
+  .row select { width: 130px; font-size: 13px; padding: 5px 8px; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 6px; background: #f5f4f0; color: #1a1a18; outline: none; }
   .row .val { font-size: 13px; font-weight: 500; color: #1a1a18; text-align: right; min-width: 110px; }
+  .row .pledged-tag { font-size: 12px; color: #185FA5; background: #EBF2FB; padding: 2px 8px; border-radius: 20px; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
   .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin: 10px 0; }
   .metric { background: #f5f4f0; border-radius: 8px; padding: 10px 12px; }
@@ -38,16 +45,26 @@
   .divider { border: none; border-top: 0.5px solid rgba(0,0,0,0.08); margin: 12px 0; }
   .save-badge { display: inline-block; font-size: 11px; background: #EAF3DE; color: #27500A; padding: 2px 8px; border-radius: 20px; margin-left: 8px; opacity: 0; transition: opacity 0.3s; }
   .save-badge.show { opacity: 1; }
-
-  @media (max-width: 480px) {
-    .grid3 { grid-template-columns: 1fr 1fr; }
-    .row input { width: 100px; }
-  }
+  .btn { font-size: 13px; padding: 8px 14px; border-radius: 8px; border: 0.5px solid rgba(0,0,0,0.2); background: #f5f4f0; color: #1a1a18; cursor: pointer; }
+  .btn-primary { background: #185FA5; color: #fff; border-color: #185FA5; font-weight: 500; }
+  .btn-small { font-size: 12px; padding: 4px 10px; border-radius: 6px; }
+  .btn-danger { color: #A32D2D; }
+  .rec-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+  .rec-table th { font-size: 11px; color: #73726c; font-weight: 500; text-align: left; padding: 4px 4px 8px; border-bottom: 0.5px solid rgba(0,0,0,0.1); }
+  .rec-table td { padding: 8px 4px; border-bottom: 0.5px solid rgba(0,0,0,0.06); vertical-align: middle; }
+  .rec-table tr:last-child td { border-bottom: none; }
+  .stock-tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; font-weight: 500; }
+  .stock-662 { background: #EBF2FB; color: #185FA5; }
+  .stock-670 { background: #FEF3E2; color: #BA7517; }
   #lock-screen { position:fixed; inset:0; background:#f5f4f0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; gap:16px; }
   #lock-screen h2 { font-size:16px; font-weight:500; color:#1a1a18; }
   #lock-screen input { font-size:18px; padding:10px 16px; border:0.5px solid rgba(0,0,0,0.2); border-radius:8px; background:#fff; color:#1a1a18; text-align:center; width:160px; letter-spacing:0.2em; outline:none; }
   #lock-screen input:focus { border-color:#185FA5; }
   #lock-screen .err { font-size:12px; color:#A32D2D; min-height:16px; }
+  @media (max-width: 480px) {
+    .grid3 { grid-template-columns: 1fr 1fr; }
+    .row input[type=number], .row input[type=date], .row select { width: 100px; }
+  }
 </style>
 </head>
 <body>
@@ -60,196 +77,273 @@
 
 <h1>73 配置追蹤器 <span class="save-badge" id="save-badge">已儲存</span></h1>
 
-<div class="section">
-  <div class="section-title">持股輸入</div>
-  <div class="row">
-    <label>00662 持股（股）</label>
-    <input type="number" id="qty662" value="0" min="0" oninput="calc(); save()">
-    <span class="val" id="v662">NT$0</span>
-  </div>
-  <div class="row">
-    <label>00670L 持股（股）</label>
-    <input type="number" id="qty670" value="0" min="0" oninput="calc(); save()">
-    <span class="val" id="v670">NT$0</span>
-  </div>
-
-  <div class="divider"></div>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-    <div class="section-title" style="margin-bottom:0;">當日股價</div>
-    <button onclick="fetchPrices()" id="fetch-btn" style="font-size:12px;padding:4px 12px;border-radius:6px;border:0.5px solid rgba(0,0,0,0.2);background:#f5f4f0;color:#1a1a18;cursor:pointer;">自動抓取股價</button>
-  </div>
-  <div id="price-status" style="font-size:11px;color:#73726c;margin-bottom:8px;min-height:16px;"></div>
-  <div class="row">
-    <label>00662 股價</label>
-    <input type="number" id="p662" value="0" step="0.01" oninput="calc(); save()">
-  </div>
-  <div class="row">
-    <label>00670L 股價</label>
-    <input type="number" id="p670" value="0" step="0.01" oninput="calc(); save()">
-  </div>
-
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('main')">主頁</button>
+  <button class="tab-btn" onclick="switchTab('pledge-log')">質押紀錄</button>
 </div>
 
-<div class="section">
-  <div class="section-title">73 配置比例追蹤</div>
-  <div class="grid3">
-    <div class="metric">
-      <div class="metric-label">總市值</div>
-      <div class="metric-value" id="total">NT$0</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">00662 比例</div>
-      <div class="metric-value" id="pct662" style="color:#185FA5;">0%</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">00670L 比例</div>
-      <div class="metric-value" id="pct670" style="color:#BA7517;">0%</div>
-    </div>
-  </div>
-  <div class="bar-wrap">
-    <div class="bar-label"><span>00662 目標 70%</span><span id="bar662label">0%</span></div>
-    <div class="bar-track"><div class="bar-fill-blue" id="bar662" style="width:0%"></div></div>
-  </div>
-  <div class="bar-wrap">
-    <div class="bar-label"><span>00670L 目標 30%</span><span id="bar670label">0%</span></div>
-    <div class="bar-track"><div class="bar-fill-amber" id="bar670" style="width:0%"></div></div>
-  </div>
-  <div id="balance-alert" class="alert-box alert-ok">輸入持股後顯示配比狀態</div>
-  <div class="divider"></div>
-  <div class="section-title" style="margin-bottom:8px;">下次買入建議</div>
-  <div class="grid2">
-    <div class="metric">
-      <div class="metric-label">若投入 7萬，買 00662</div>
-      <div class="metric-value" id="buy662">—</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">若投入 7萬，買 00670L</div>
-      <div class="metric-value" id="buy670">—</div>
-    </div>
-  </div>
-</div>
+<!-- ===== TAB 1：主頁 ===== -->
+<div id="tab-main" class="tab-panel active">
 
-<div class="section">
-  <div class="section-title">房貸資訊</div>
-  <div class="row">
-    <label>一般房貸餘額（萬）</label>
-    <input type="number" id="loan1" value="0" oninput="calc(); save()">
-  </div>
-  <div class="row">
-    <label>一般房貸利率（%）</label>
-    <input type="number" id="rate1" value="0" step="0.01" oninput="calc(); save()">
-  </div>
-  <div class="row">
-    <label>投資增貸餘額（萬）</label>
-    <input type="number" id="loan2" value="230" oninput="calc(); save()">
-  </div>
-  <div class="row">
-    <label>增貸利率（%）</label>
-    <input type="number" id="rate2" value="2.7" step="0.01" oninput="calc(); save()">
-  </div>
-  <div class="divider"></div>
-  <div class="grid3">
-    <div class="metric">
-      <div class="metric-label">每月利息總計</div>
-      <div class="metric-value" id="monthly_interest">NT$0</div>
+  <div class="section">
+    <div class="section-title">持股輸入</div>
+    <div class="row">
+      <label>00662 自有（股）</label>
+      <input type="number" id="qty662" value="0" min="0" oninput="calc(); save()">
+      <span class="val" id="v662_own">NT$0</span>
     </div>
-    <div class="metric">
-      <div class="metric-label">年化利息總支出</div>
-      <div class="metric-value" id="annual_interest">NT$0</div>
+    <div class="row">
+      <label>00662 質押中（股）</label>
+      <span class="pledged-tag" id="pledged662_label">0 股</span>
+      <span class="val" id="v662_pled">NT$0</span>
     </div>
-    <div class="metric">
-      <div class="metric-label">利息 vs 月薪比</div>
-      <div class="metric-value" id="interest_ratio">0%</div>
+    <div class="row" style="background:#f9f9f7;margin:4px -4px;padding:6px 4px;border-radius:6px;">
+      <label style="font-weight:500;color:#1a1a18;">00662 合計</label>
+      <span style="font-size:13px;font-weight:500;color:#185FA5;" id="total662_shares">0 股</span>
+      <span class="val" id="v662">NT$0</span>
     </div>
-  </div>
-</div>
 
-<div class="section">
-  <div class="section-title">質押借貸追蹤</div>
-  <div class="row">
-    <label>目前質押借貸金額（萬）</label>
-    <input type="number" id="pledge_amt" value="0" oninput="calc(); save()">
+    <div class="divider"></div>
+
+    <div class="row">
+      <label>00670L 自有（股）</label>
+      <input type="number" id="qty670" value="0" min="0" oninput="calc(); save()">
+      <span class="val" id="v670_own">NT$0</span>
+    </div>
+    <div class="row">
+      <label>00670L 質押中（股）</label>
+      <span class="pledged-tag" id="pledged670_label">0 股</span>
+      <span class="val" id="v670_pled">NT$0</span>
+    </div>
+    <div class="row" style="background:#f9f9f7;margin:4px -4px;padding:6px 4px;border-radius:6px;">
+      <label style="font-weight:500;color:#1a1a18;">00670L 合計</label>
+      <span style="font-size:13px;font-weight:500;color:#BA7517;" id="total670_shares">0 股</span>
+      <span class="val" id="v670">NT$0</span>
+    </div>
+
+    <div class="divider"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div class="section-title" style="margin-bottom:0;">當日股價</div>
+      <button onclick="fetchPrices()" id="fetch-btn" class="btn btn-small">自動抓取股價</button>
+    </div>
+    <div id="price-status" style="font-size:11px;color:#73726c;margin-bottom:8px;min-height:16px;"></div>
+    <div class="row">
+      <label>00662 股價</label>
+      <input type="number" id="p662" value="0" step="0.01" oninput="calc(); save()">
+    </div>
+    <div class="row">
+      <label>00670L 股價</label>
+      <input type="number" id="p670" value="0" step="0.01" oninput="calc(); save()">
+    </div>
   </div>
-  <div class="row">
-    <label>質押利率（%）</label>
-    <input type="number" id="pledge_rate" value="2.88" step="0.01" oninput="calc(); save()">
-  </div>
-  <div class="divider"></div>
-  <div class="grid3">
-    <div class="metric">
-      <div class="metric-label">00662 市值</div>
-      <div class="metric-value" id="val662_m">NT$0</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">可質押上限（20%）</div>
-      <div class="metric-value" id="pledge_max">NT$0</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">剩餘可借空間</div>
-      <div class="metric-value" id="pledge_remain">NT$0</div>
-    </div>
-  </div>
-  <div class="pledge-meter" style="margin-top:12px;">
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:#73726c;margin-bottom:4px;">
-      <span>借貸成數</span>
-      <span style="font-weight:500;" id="pledge_pct2">0%</span>
-    </div>
-    <div class="pledge-line-wrap">
-      <div class="pledge-track">
-        <div class="pledge-fill" id="pledge_bar" style="width:0%;background:#185FA5;"></div>
+
+  <div class="section">
+    <div class="section-title">73 配置比例追蹤</div>
+    <div class="grid3">
+      <div class="metric">
+        <div class="metric-label">總市值</div>
+        <div class="metric-value" id="total">NT$0</div>
       </div>
-      <div style="position:relative;height:0;">
-        <div style="position:absolute;top:-14px;left:calc(20% - 1px);width:2px;height:14px;background:#A32D2D;"></div>
+      <div class="metric">
+        <div class="metric-label">00662 比例</div>
+        <div class="metric-value" id="pct662" style="color:#185FA5;">0%</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">00670L 比例</div>
+        <div class="metric-value" id="pct670" style="color:#BA7517;">0%</div>
       </div>
     </div>
-    <div class="pledge-limit-label">20% 警戒線</div>
-  </div>
-  <div id="pledge-alert" class="alert-box alert-ok">目前無質押借貸</div>
-  <div class="grid2" style="margin-top:10px;">
-    <div class="metric">
-      <div class="metric-label">質押月利息</div>
-      <div class="metric-value" id="pledge_monthly">NT$0</div>
+    <div class="bar-wrap">
+      <div class="bar-label"><span>00662 目標 70%</span><span id="bar662label">0%</span></div>
+      <div class="bar-track"><div class="bar-fill-blue" id="bar662" style="width:0%"></div></div>
     </div>
-    <div class="metric">
-      <div class="metric-label">質押年利息</div>
-      <div class="metric-value" id="pledge_annual">NT$0</div>
+    <div class="bar-wrap">
+      <div class="bar-label"><span>00670L 目標 30%</span><span id="bar670label">0%</span></div>
+      <div class="bar-track"><div class="bar-fill-amber" id="bar670" style="width:0%"></div></div>
+    </div>
+    <div id="balance-alert" class="alert-box alert-ok">輸入持股後顯示配比狀態</div>
+    <div class="divider"></div>
+    <div class="section-title" style="margin-bottom:8px;">下次買入建議</div>
+    <div class="grid2">
+      <div class="metric">
+        <div class="metric-label">若投入 7萬，買 00662</div>
+        <div class="metric-value" id="buy662">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">若投入 7萬，買 00670L</div>
+        <div class="metric-value" id="buy670">—</div>
+      </div>
     </div>
   </div>
-</div>
 
-<div class="section">
-  <div class="section-title">每月利息總計</div>
-  <div class="grid3">
-    <div class="metric">
-      <div class="metric-label">房貸月利息</div>
-      <div class="metric-value" id="summary_loan">NT$0</div>
+  <div class="section">
+    <div class="section-title">房貸資訊</div>
+    <div class="row">
+      <label>一般房貸餘額（萬）</label>
+      <input type="number" id="loan1" value="0" oninput="calc(); save()">
     </div>
-    <div class="metric">
-      <div class="metric-label">質押月利息</div>
-      <div class="metric-value" id="summary_pledge">NT$0</div>
+    <div class="row">
+      <label>一般房貸利率（%）</label>
+      <input type="number" id="rate1" value="0" step="0.01" oninput="calc(); save()">
     </div>
-    <div class="metric">
-      <div class="metric-label">合計月利息</div>
-      <div class="metric-value" id="summary_total" style="color:#185FA5;font-size:17px;">NT$0</div>
+    <div class="row">
+      <label>投資增貸餘額（萬）</label>
+      <input type="number" id="loan2" value="230" oninput="calc(); save()">
+    </div>
+    <div class="row">
+      <label>增貸利率（%）</label>
+      <input type="number" id="rate2" value="2.7" step="0.01" oninput="calc(); save()">
+    </div>
+    <div class="divider"></div>
+    <div class="grid3">
+      <div class="metric">
+        <div class="metric-label">每月利息總計</div>
+        <div class="metric-value" id="monthly_interest">NT$0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">年化利息總支出</div>
+        <div class="metric-value" id="annual_interest">NT$0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">利息 vs 月薪比</div>
+        <div class="metric-value" id="interest_ratio">0%</div>
+      </div>
     </div>
   </div>
-</div>
 
-<div class="section">
-  <div class="section-title">資料備份</div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;">
-    <button onclick="exportData()" style="flex:1;font-size:13px;padding:8px 12px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.2);background:#f5f4f0;color:#1a1a18;cursor:pointer;">匯出備份</button>
-    <button onclick="document.getElementById('import-file').click()" style="flex:1;font-size:13px;padding:8px 12px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.2);background:#f5f4f0;color:#1a1a18;cursor:pointer;">匯入還原</button>
-    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+  <div class="section">
+    <div class="section-title">質押借貸追蹤</div>
+    <div class="row">
+      <label>目前質押借貸金額（萬）</label>
+      <input type="number" id="pledge_amt" value="0" oninput="calc(); save()">
+    </div>
+    <div class="row">
+      <label>質押利率（%）</label>
+      <input type="number" id="pledge_rate" value="2.88" step="0.01" oninput="calc(); save()">
+    </div>
+    <div class="divider"></div>
+    <div class="grid3">
+      <div class="metric">
+        <div class="metric-label">00662 市值</div>
+        <div class="metric-value" id="val662_m">NT$0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">可質押上限（20%）</div>
+        <div class="metric-value" id="pledge_max">NT$0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">剩餘可借空間</div>
+        <div class="metric-value" id="pledge_remain">NT$0</div>
+      </div>
+    </div>
+    <div class="pledge-meter" style="margin-top:12px;">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#73726c;margin-bottom:4px;">
+        <span>借貸成數</span>
+        <span style="font-weight:500;" id="pledge_pct2">0%</span>
+      </div>
+      <div class="pledge-line-wrap">
+        <div class="pledge-track">
+          <div class="pledge-fill" id="pledge_bar" style="width:0%;background:#185FA5;"></div>
+        </div>
+        <div style="position:relative;height:0;">
+          <div style="position:absolute;top:-14px;left:calc(20% - 1px);width:2px;height:14px;background:#A32D2D;"></div>
+        </div>
+      </div>
+      <div class="pledge-limit-label">20% 警戒線</div>
+    </div>
+    <div id="pledge-alert" class="alert-box alert-ok">目前無質押借貸</div>
+    <div class="grid2" style="margin-top:10px;">
+      <div class="metric">
+        <div class="metric-label">質押月利息</div>
+        <div class="metric-value" id="pledge_monthly">NT$0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">質押年利息</div>
+        <div class="metric-value" id="pledge_annual">NT$0</div>
+      </div>
+    </div>
   </div>
-  <div id="backup-status" style="font-size:11px;color:#73726c;margin-top:8px;min-height:16px;"></div>
-</div>
+
+  <div class="section">
+    <div class="section-title">每月利息總計</div>
+    <div class="grid3">
+      <div class="metric">
+        <div class="metric-label">房貸月利息</div>
+        <div class="metric-value" id="summary_loan">NT$0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">質押月利息</div>
+        <div class="metric-value" id="summary_pledge">NT$0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">合計月利息</div>
+        <div class="metric-value" id="summary_total" style="color:#185FA5;font-size:17px;">NT$0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">資料備份</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button onclick="exportData()" class="btn" style="flex:1;">匯出備份</button>
+      <button onclick="document.getElementById('import-file').click()" class="btn" style="flex:1;">匯入還原</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+    </div>
+    <div id="backup-status" style="font-size:11px;color:#73726c;margin-top:8px;min-height:16px;"></div>
+  </div>
+
+</div><!-- end tab-main -->
+
+<!-- ===== TAB 2：質押紀錄 ===== -->
+<div id="tab-pledge-log" class="tab-panel">
+
+  <div class="section">
+    <div class="section-title">新增質押紀錄</div>
+    <div class="row">
+      <label>日期</label>
+      <input type="date" id="rec_date">
+    </div>
+    <div class="row">
+      <label>標的</label>
+      <select id="rec_stock">
+        <option value="662">00662</option>
+        <option value="670">00670L</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>股數（股）</label>
+      <input type="number" id="rec_shares" min="1" placeholder="0" style="width:130px;">
+    </div>
+    <div class="row" style="border-bottom:none;">
+      <label>轉出當日股價</label>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="number" id="rec_price" step="0.01" placeholder="0.00" style="width:90px;">
+        <button onclick="fillRecPrice()" class="btn btn-small" id="rec-fetch-btn">帶入當日</button>
+      </div>
+    </div>
+    <div id="rec-status" style="font-size:11px;color:#73726c;margin:6px 0 10px;min-height:16px;"></div>
+    <button onclick="addPledgeRecord()" class="btn btn-primary" style="width:100%;">新增紀錄</button>
+    <div id="rec-err" style="font-size:12px;color:#A32D2D;margin-top:6px;min-height:16px;"></div>
+  </div>
+
+  <div class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="section-title" style="margin-bottom:0;">質押紀錄</div>
+      <div id="pledged-summary" style="font-size:11px;color:#73726c;"></div>
+    </div>
+    <div id="pledge-records-list">
+      <div style="font-size:13px;color:#73726c;padding:8px 0;">尚無質押紀錄</div>
+    </div>
+  </div>
+
+</div><!-- end tab-pledge-log -->
 
 <div style="font-size:11px;color:#73726c;text-align:center;padding:1rem 0;">
   資料自動儲存於本機瀏覽器 · 73 配置追蹤器
 </div>
 
 <script>
+// ── 密碼保護 ──
 (function() {
   const PWD = '4358';
   const lock = document.getElementById('lock-screen');
@@ -269,48 +363,130 @@
   });
 })();
 
+// ── Tab 切換 ──
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ── localStorage keys ──
 const KEYS = ['qty662', 'qty670', 'p662', 'p670', 'loan1', 'rate1', 'loan2', 'rate2', 'pledge_amt', 'pledge_rate'];
 
-function exportData() {
-  const data = {};
-  KEYS.forEach(k => { data[k] = localStorage.getItem('pt_' + k) || ''; });
-  const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  const d = new Date();
-  a.download = '73tracker_backup_' + d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0') + '.json';
-  a.click();
-  document.getElementById('backup-status').textContent = '備份已下載，更換新版本前請保留此檔案';
-  document.getElementById('backup-status').style.color = '#27500A';
+// ── 質押紀錄 ──
+function getPledgeRecords() {
+  try { return JSON.parse(localStorage.getItem('pt_pledge_records') || '[]'); }
+  catch { return []; }
 }
 
-function importData(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const data = JSON.parse(e.target.result);
-      KEYS.forEach(k => {
-        if (data[k] !== undefined) {
-          localStorage.setItem('pt_' + k, data[k]);
-        }
-      });
-      load();
-      calc();
-      document.getElementById('backup-status').textContent = '還原成功，所有資料已載入';
-      document.getElementById('backup-status').style.color = '#27500A';
-    } catch(err) {
-      document.getElementById('backup-status').textContent = '匯入失敗，請確認檔案格式正確';
-      document.getElementById('backup-status').style.color = '#A32D2D';
-    }
-  };
-  reader.readAsText(file);
-  event.target.value = '';
+function savePledgeRecords(records) {
+  localStorage.setItem('pt_pledge_records', JSON.stringify(records));
 }
 
+function getPledgedShares() {
+  const records = getPledgeRecords();
+  let s662 = 0, s670 = 0;
+  records.forEach(r => {
+    if (r.stock === '662') s662 += Number(r.shares);
+    else s670 += Number(r.shares);
+  });
+  return { s662, s670 };
+}
 
+function addPledgeRecord() {
+  const date = document.getElementById('rec_date').value;
+  const stock = document.getElementById('rec_stock').value;
+  const shares = parseFloat(document.getElementById('rec_shares').value);
+  const price = parseFloat(document.getElementById('rec_price').value);
+  const err = document.getElementById('rec-err');
+
+  if (!date) { err.textContent = '請填入日期'; return; }
+  if (!shares || shares <= 0) { err.textContent = '請填入股數'; return; }
+  if (!price || price <= 0) { err.textContent = '請填入股價'; return; }
+  err.textContent = '';
+
+  const records = getPledgeRecords();
+  records.push({ id: Date.now().toString(), date, stock, shares, price });
+  records.sort((a, b) => b.date.localeCompare(a.date));
+  savePledgeRecords(records);
+
+  document.getElementById('rec_shares').value = '';
+  document.getElementById('rec_price').value = '';
+  renderPledgeRecords();
+  calc();
+}
+
+function deletePledgeRecord(id) {
+  const records = getPledgeRecords().filter(r => r.id !== id);
+  savePledgeRecords(records);
+  renderPledgeRecords();
+  calc();
+}
+
+function renderPledgeRecords() {
+  const records = getPledgeRecords();
+  const { s662, s670 } = getPledgedShares();
+
+  document.getElementById('pledged-summary').textContent =
+    '00662 共 ' + s662 + ' 股 ／ 00670L 共 ' + s670 + ' 股';
+
+  const el = document.getElementById('pledge-records-list');
+  if (records.length === 0) {
+    el.innerHTML = '<div style="font-size:13px;color:#73726c;padding:8px 0;">尚無質押紀錄</div>';
+    return;
+  }
+
+  let html = '<table class="rec-table"><thead><tr><th>日期</th><th>標的</th><th style="text-align:right;">股數</th><th style="text-align:right;">股價</th><th style="text-align:right;">市值</th><th></th></tr></thead><tbody>';
+  records.forEach(r => {
+    const val = r.shares * r.price;
+    const tag = r.stock === '662'
+      ? '<span class="stock-tag stock-662">00662</span>'
+      : '<span class="stock-tag stock-670">00670L</span>';
+    html += `<tr>
+      <td>${r.date}</td>
+      <td>${tag}</td>
+      <td style="text-align:right;">${r.shares}</td>
+      <td style="text-align:right;">${parseFloat(r.price).toFixed(2)}</td>
+      <td style="text-align:right;">${fmt(val)}</td>
+      <td style="text-align:right;"><button class="btn btn-small btn-danger" onclick="deletePledgeRecord('${r.id}')">刪除</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+async function fillRecPrice() {
+  const stock = document.getElementById('rec_stock').value;
+  const btn = document.getElementById('rec-fetch-btn');
+  const status = document.getElementById('rec-status');
+  const symbol = stock === '662' ? '00662.TW' : '00670L.TW';
+  const name = stock === '662' ? '00662' : '00670L';
+
+  btn.textContent = '抓取中...';
+  btn.disabled = true;
+  status.textContent = '';
+
+  try {
+    const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + symbol + '?interval=1d&range=1d';
+    const res = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(yahooUrl));
+    if (!res.ok) throw new Error('無法連線');
+    const data = await res.json();
+    const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    if (!price) throw new Error('無法取得價格');
+    document.getElementById('rec_price').value = price.toFixed(2);
+    status.textContent = name + ' 當日股價：' + price.toFixed(2);
+    status.style.color = '#27500A';
+  } catch(e) {
+    status.textContent = '抓取失敗，請手動輸入（' + e.message + '）';
+    status.style.color = '#A32D2D';
+  }
+
+  btn.textContent = '帶入當日';
+  btn.disabled = false;
+}
+
+// ── 主要抓價 ──
 async function fetchPrices() {
   const btn = document.getElementById('fetch-btn');
   const status = document.getElementById('price-status');
@@ -324,7 +500,6 @@ async function fetchPrices() {
 
   try {
     let got = [];
-
     for (let i = 0; i < symbols.length; i++) {
       const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + symbols[i] + '?interval=1d&range=1d';
       const res = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(yahooUrl));
@@ -335,12 +510,10 @@ async function fetchPrices() {
       document.getElementById(ids[i]).value = price.toFixed(2);
       got.push(names[i] + ' ' + price.toFixed(2));
     }
-
     save();
     calc();
     const now = new Date();
-    const timeStr = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
-    status.textContent = '已更新：' + got.join('、') + '（' + timeStr + '）';
+    status.textContent = '已更新：' + got.join('、') + '（' + now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0') + '）';
     status.style.color = '#27500A';
   } catch (e) {
     status.textContent = '自動抓取失敗，請手動輸入股價（' + e.message + '）';
@@ -351,8 +524,45 @@ async function fetchPrices() {
   btn.disabled = false;
 }
 
+// ── 備份 ──
+function exportData() {
+  const data = {};
+  KEYS.forEach(k => { data[k] = localStorage.getItem('pt_' + k) || ''; });
+  data['pledge_records'] = localStorage.getItem('pt_pledge_records') || '[]';
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const d = new Date();
+  a.download = '73tracker_backup_' + d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0') + '.json';
+  a.click();
+  document.getElementById('backup-status').textContent = '備份已下載';
+  document.getElementById('backup-status').style.color = '#27500A';
+}
 
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      KEYS.forEach(k => { if (data[k] !== undefined) localStorage.setItem('pt_' + k, data[k]); });
+      if (data['pledge_records']) localStorage.setItem('pt_pledge_records', data['pledge_records']);
+      load();
+      renderPledgeRecords();
+      calc();
+      document.getElementById('backup-status').textContent = '還原成功，所有資料已載入';
+      document.getElementById('backup-status').style.color = '#27500A';
+    } catch(err) {
+      document.getElementById('backup-status').textContent = '匯入失敗，請確認檔案格式正確';
+      document.getElementById('backup-status').style.color = '#A32D2D';
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
 
+// ── Load / Save ──
 function load() {
   KEYS.forEach(k => {
     const v = localStorage.getItem('pt_' + k);
@@ -361,36 +571,48 @@ function load() {
 }
 
 function save() {
-  KEYS.forEach(k => {
-    localStorage.setItem('pt_' + k, document.getElementById(k).value);
-  });
+  KEYS.forEach(k => { localStorage.setItem('pt_' + k, document.getElementById(k).value); });
   const badge = document.getElementById('save-badge');
   badge.classList.add('show');
   clearTimeout(window._saveTimer);
   window._saveTimer = setTimeout(() => badge.classList.remove('show'), 1500);
 }
 
-function fmt(n) {
-  return 'NT$' + Math.round(n).toLocaleString();
-}
+function fmt(n) { return 'NT$' + Math.round(n).toLocaleString(); }
 
+// ── 計算 ──
 function calc() {
-  const q662 = parseFloat(document.getElementById('qty662').value) || 0;
-  const q670 = parseFloat(document.getElementById('qty670').value) || 0;
+  const { s662, s670 } = getPledgedShares();
+
+  const own662 = parseFloat(document.getElementById('qty662').value) || 0;
+  const own670 = parseFloat(document.getElementById('qty670').value) || 0;
+  const total662 = own662 + s662;
+  const total670 = own670 + s670;
   const p662 = parseFloat(document.getElementById('p662').value) || 0;
   const p670 = parseFloat(document.getElementById('p670').value) || 0;
 
-  const val662 = q662 * p662;
-  const val670 = q670 * p670;
+  const val662_own = own662 * p662;
+  const val662_pled = s662 * p662;
+  const val662 = total662 * p662;
+  const val670_own = own670 * p670;
+  const val670_pled = s670 * p670;
+  const val670 = total670 * p670;
   const total = val662 + val670;
 
+  document.getElementById('pledged662_label').textContent = s662 + ' 股';
+  document.getElementById('pledged670_label').textContent = s670 + ' 股';
+  document.getElementById('total662_shares').textContent = total662 + ' 股';
+  document.getElementById('total670_shares').textContent = total670 + ' 股';
+  document.getElementById('v662_own').textContent = fmt(val662_own);
+  document.getElementById('v662_pled').textContent = fmt(val662_pled);
   document.getElementById('v662').textContent = fmt(val662);
+  document.getElementById('v670_own').textContent = fmt(val670_own);
+  document.getElementById('v670_pled').textContent = fmt(val670_pled);
   document.getElementById('v670').textContent = fmt(val670);
   document.getElementById('total').textContent = fmt(total);
 
   const pct662 = total > 0 ? (val662 / total * 100) : 0;
   const pct670 = total > 0 ? (val670 / total * 100) : 0;
-
   document.getElementById('pct662').textContent = pct662.toFixed(1) + '%';
   document.getElementById('pct670').textContent = pct670.toFixed(1) + '%';
   document.getElementById('bar662').style.width = Math.min(pct662, 100) + '%';
@@ -417,18 +639,8 @@ function calc() {
   }
 
   const monthly_input = 70000;
-  const need662 = monthly_input * 0.7;
-  const need670 = monthly_input * 0.3;
-  if (p662 > 0) {
-    document.getElementById('buy662').textContent = Math.floor(need662 / p662) + ' 股';
-  } else {
-    document.getElementById('buy662').textContent = '—';
-  }
-  if (p670 > 0) {
-    document.getElementById('buy670').textContent = Math.floor(need670 / p670) + ' 股';
-  } else {
-    document.getElementById('buy670').textContent = '—';
-  }
+  document.getElementById('buy662').textContent = p662 > 0 ? Math.floor(monthly_input * 0.7 / p662) + ' 股' : '—';
+  document.getElementById('buy670').textContent = p670 > 0 ? Math.floor(monthly_input * 0.3 / p670) + ' 股' : '—';
 
   const loan1 = (parseFloat(document.getElementById('loan1').value) || 0) * 10000;
   const rate1 = parseFloat(document.getElementById('rate1').value) || 0;
@@ -483,7 +695,10 @@ function calc() {
   document.getElementById('summary_total').textContent = fmt(monthly + pledge_monthly);
 }
 
+// ── 初始化 ──
+document.getElementById('rec_date').value = new Date().toISOString().slice(0, 10);
 load();
+renderPledgeRecords();
 calc();
 </script>
 </body>
