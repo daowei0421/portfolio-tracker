@@ -182,6 +182,7 @@
 
   <div class="section">
     <div class="section-title">房貸資訊</div>
+    <div class="row"><label>每月薪資（元）</label><input type="number" id="monthly_salary" value="150000" oninput="calc(); save()"></div>
     <div class="row"><label>一般房貸餘額（萬）</label><input type="number" id="loan1" value="0" oninput="calc(); save()"></div>
     <div class="row"><label>一般房貸利率（%）</label><input type="number" id="rate1" value="0" step="0.01" oninput="calc(); save()"></div>
     <div class="row"><label>投資增貸餘額（萬）</label><input type="number" id="loan2" value="230" oninput="calc(); save()"></div>
@@ -377,7 +378,7 @@ function syncRecPrice() {
 }
 
 // ── localStorage keys（for export/import only）──
-const KEYS = ['qty662', 'qty670', 'p662', 'p670', 'loan1', 'rate1', 'loan2', 'rate2', 'pledge_amt', 'pledge_rate'];
+const KEYS = ['qty662', 'qty670', 'p662', 'p670', 'monthly_salary', 'loan1', 'rate1', 'loan2', 'rate2', 'pledge_amt', 'pledge_rate'];
 
 // ── 質押紀錄 ──
 function getPledgeRecords() { return _pledgeRecords; }
@@ -572,9 +573,10 @@ function calc() {
   const rate2 = parseFloat(document.getElementById('rate2').value) || 0;
   const annual = (loan1 * rate1 / 100) + (loan2 * rate2 / 100);
   const monthly = annual / 12;
+  const monthly_salary = parseFloat(document.getElementById('monthly_salary').value) || 150000;
   document.getElementById('monthly_interest').textContent = fmt(monthly);
   document.getElementById('annual_interest').textContent = fmt(annual);
-  document.getElementById('interest_ratio').textContent = (monthly / 150000 * 100).toFixed(1) + '%';
+  document.getElementById('interest_ratio').textContent = (monthly / monthly_salary * 100).toFixed(1) + '%';
 
   const pledge_amt = (parseFloat(document.getElementById('pledge_amt').value) || 0) * 10000;
   const pledge_rate = parseFloat(document.getElementById('pledge_rate').value) || 0;
