@@ -189,10 +189,17 @@
     </div>
     <div id="balance-alert" class="alert-box alert-ok">輸入持股後顯示配比狀態</div>
     <div class="divider"></div>
-    <div class="section-title" style="margin-bottom:8px;">下次買入建議</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div class="section-title" style="margin-bottom:0;">下次買入建議</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:11px;color:#73726c;">每月投入</span>
+        <input type="number" id="monthly_input" value="70000" style="width:90px;font-size:12px;padding:3px 6px;border:0.5px solid rgba(0,0,0,0.2);border-radius:6px;background:#f5f4f0;color:#1a1a18;text-align:right;outline:none;" oninput="calc(); save()">
+        <span style="font-size:11px;color:#73726c;">元</span>
+      </div>
+    </div>
     <div class="grid2">
-      <div class="metric"><div class="metric-label">若投入 7萬，買 00662</div><div class="metric-value" id="buy662">—</div></div>
-      <div class="metric"><div class="metric-label">若投入 7萬，買 00670L</div><div class="metric-value" id="buy670">—</div></div>
+      <div class="metric"><div class="metric-label" id="buy662_label">買 00662</div><div class="metric-value" id="buy662">—</div></div>
+      <div class="metric"><div class="metric-label" id="buy670_label">買 00670L</div><div class="metric-value" id="buy670">—</div></div>
     </div>
   </div>
 
@@ -460,7 +467,7 @@ function syncRecPrice() {
 }
 
 // ── localStorage keys（for export/import only）──
-const KEYS = ['qty662', 'qty670', 'p662', 'p670', 'monthly_salary', 'loan1', 'rate1', 'loan2', 'rate2', 'pledge_amt', 'pledge_rate'];
+const KEYS = ['qty662', 'qty670', 'p662', 'p670', 'monthly_salary', 'monthly_input', 'loan1', 'rate1', 'loan2', 'rate2', 'pledge_amt', 'pledge_rate'];
 
 // ── 質押紀錄 ──
 function getPledgeRecords() { return _pledgeRecords; }
@@ -646,7 +653,10 @@ function calc() {
     alertEl.textContent = '配比偏移較大（' + Math.abs(diff662).toFixed(1) + '%）—— ' + (diff662 > 0 ? '建議優先加碼 00670L' : '建議優先加碼 00662');
   }
 
-  const monthly_input = 70000;
+  const monthly_input = parseFloat(document.getElementById('monthly_input').value) || 70000;
+  const inputWan = monthly_input >= 10000 ? (monthly_input / 10000).toFixed(monthly_input % 10000 === 0 ? 0 : 1) + '萬' : monthly_input.toLocaleString() + '元';
+  document.getElementById('buy662_label').textContent = '投入 ' + inputWan + '，買 00662';
+  document.getElementById('buy670_label').textContent = '投入 ' + inputWan + '，買 00670L';
   if (p662 > 0 && p670 > 0 && total > 0) {
     // 計算投入後最接近 70/30 的分配
     const target662 = 0.7 * (total + monthly_input) - val662;
@@ -789,7 +799,7 @@ function calcProjection(pv, monthlyContrib, years, annualRate) {
 
 function renderProjection() {
   const pv = parseFloat(document.getElementById('total_assets').textContent.replace(/[^0-9]/g, '')) || 0;
-  const contrib = parseFloat(document.getElementById('proj_contrib').value) || 0;
+  const contrib = parseFloat(document.getElementById('proj_contrib').value) || parseFloat(document.getElementById('monthly_input').value) || 70000;
   const years = _projYears;
 
   document.getElementById('proj_init_display').textContent = fmt(pv);
