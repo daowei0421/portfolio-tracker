@@ -647,8 +647,29 @@ function calc() {
   }
 
   const monthly_input = 70000;
-  document.getElementById('buy662').textContent = p662 > 0 ? Math.floor(monthly_input * 0.7 / p662) + ' 股' : '—';
-  document.getElementById('buy670').textContent = p670 > 0 ? Math.floor(monthly_input * 0.3 / p670) + ' 股' : '—';
+  if (p662 > 0 && p670 > 0 && total > 0) {
+    // 計算投入後最接近 70/30 的分配
+    const target662 = 0.7 * (total + monthly_input) - val662;
+    const target670 = 0.3 * (total + monthly_input) - val670;
+    let alloc662, alloc670;
+    if (target662 <= 0) {
+      // 00662 已過多，全部買 00670L
+      alloc662 = 0; alloc670 = monthly_input;
+    } else if (target670 <= 0) {
+      // 00670L 已過多，全部買 00662
+      alloc662 = monthly_input; alloc670 = 0;
+    } else {
+      // 按需求比例分配
+      const ratio = target662 / (target662 + target670);
+      alloc662 = Math.round(monthly_input * ratio);
+      alloc670 = monthly_input - alloc662;
+    }
+    document.getElementById('buy662').textContent = alloc662 > 0 ? Math.floor(alloc662 / p662) + ' 股（' + Math.round(alloc662 / 1000) + '千元）' : '本月不買';
+    document.getElementById('buy670').textContent = alloc670 > 0 ? Math.floor(alloc670 / p670) + ' 股（' + Math.round(alloc670 / 1000) + '千元）' : '本月不買';
+  } else {
+    document.getElementById('buy662').textContent = p662 > 0 ? Math.floor(monthly_input * 0.7 / p662) + ' 股' : '—';
+    document.getElementById('buy670').textContent = p670 > 0 ? Math.floor(monthly_input * 0.3 / p670) + ' 股' : '—';
+  }
 
   const loan1 = (parseFloat(document.getElementById('loan1').value) || 0) * 10000;
   const rate1 = parseFloat(document.getElementById('rate1').value) || 0;
