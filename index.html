@@ -674,8 +674,8 @@ function calc() {
       alloc662 = Math.round(monthly_input * ratio);
       alloc670 = monthly_input - alloc662;
     }
-    document.getElementById('buy662').textContent = alloc662 > 0 ? Math.floor(alloc662 / p662) + ' 股（' + Math.round(alloc662 / 1000) + '千元）' : '本月不買';
-    document.getElementById('buy670').textContent = alloc670 > 0 ? Math.floor(alloc670 / p670) + ' 股（' + Math.round(alloc670 / 1000) + '千元）' : '本月不買';
+    document.getElementById('buy662').textContent = alloc662 > 0 ? Math.floor(alloc662 / p662) + ' 股' : '本月不買';
+    document.getElementById('buy670').textContent = alloc670 > 0 ? Math.floor(alloc670 / p670) + ' 股' : '本月不買';
   } else {
     document.getElementById('buy662').textContent = p662 > 0 ? Math.floor(monthly_input * 0.7 / p662) + ' 股' : '—';
     document.getElementById('buy670').textContent = p670 > 0 ? Math.floor(monthly_input * 0.3 / p670) + ' 股' : '—';
