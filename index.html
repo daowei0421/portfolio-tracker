@@ -529,16 +529,56 @@ function renderPledgeRecords() {
     const tag = r.stock === '662'
       ? '<span class="stock-tag stock-662">00662</span>'
       : '<span class="stock-tag stock-670">00670L</span>';
-    html += `<tr>
+    html += `<tr id="rec-row-${r.id}">
       <td>${r.date}</td><td>${tag}</td>
       <td style="text-align:right;">${r.shares}</td>
       <td style="text-align:right;">${parseFloat(r.price).toFixed(2)}</td>
       <td style="text-align:right;">${fmt(val)}</td>
-      <td style="text-align:right;"><button class="btn btn-small btn-danger" onclick="deletePledgeRecord('${r.id}')">刪除</button></td>
+      <td style="text-align:right;white-space:nowrap;">
+        <button class="btn btn-small" style="background:#f0f0ee;color:#1a1a18;border:0.5px solid rgba(0,0,0,0.15);margin-right:4px;" onclick="editPledgeRecord('${r.id}')">編輯</button>
+        <button class="btn btn-small btn-danger" onclick="deletePledgeRecord('${r.id}')">刪除</button>
+      </td>
     </tr>`;
   });
   html += '</tbody></table>';
   el.innerHTML = html;
+}
+
+function editPledgeRecord(id) {
+  const r = _pledgeRecords.find(x => x.id === id);
+  if (!r) return;
+  const row = document.getElementById('rec-row-' + id);
+  row.innerHTML = `
+    <td><input type="date" value="${r.date}" id="edit-date-${id}" style="width:120px;font-size:12px;padding:3px 5px;border:0.5px solid rgba(0,0,0,0.2);border-radius:5px;background:#fff;"></td>
+    <td>
+      <select id="edit-stock-${id}" style="width:80px;font-size:12px;padding:3px 5px;border:0.5px solid rgba(0,0,0,0.2);border-radius:5px;background:#fff;">
+        <option value="662" ${r.stock==='662'?'selected':''}>00662</option>
+        <option value="670" ${r.stock==='670'?'selected':''}>00670L</option>
+      </select>
+    </td>
+    <td style="text-align:right;"><input type="number" value="${r.shares}" id="edit-shares-${id}" style="width:70px;font-size:12px;padding:3px 5px;border:0.5px solid rgba(0,0,0,0.2);border-radius:5px;background:#fff;text-align:right;"></td>
+    <td style="text-align:right;"><input type="number" value="${r.price}" step="0.01" id="edit-price-${id}" style="width:70px;font-size:12px;padding:3px 5px;border:0.5px solid rgba(0,0,0,0.2);border-radius:5px;background:#fff;text-align:right;"></td>
+    <td></td>
+    <td style="text-align:right;white-space:nowrap;">
+      <button class="btn btn-small" style="background:#185FA5;color:#fff;margin-right:4px;" onclick="savePledgeEdit('${id}')">確認</button>
+      <button class="btn btn-small" style="background:#f0f0ee;color:#73726c;border:0.5px solid rgba(0,0,0,0.15);" onclick="renderPledgeRecords()">取消</button>
+    </td>
+  `;
+}
+
+function savePledgeEdit(id) {
+  const idx = _pledgeRecords.findIndex(x => x.id === id);
+  if (idx < 0) return;
+  const date = document.getElementById('edit-date-' + id).value;
+  const stock = document.getElementById('edit-stock-' + id).value;
+  const shares = parseFloat(document.getElementById('edit-shares-' + id).value);
+  const price = parseFloat(document.getElementById('edit-price-' + id).value);
+  if (!date || !shares || shares <= 0 || !price || price <= 0) { alert('請填入完整資料'); return; }
+  _pledgeRecords[idx] = { ..._pledgeRecords[idx], date, stock, shares, price };
+  _pledgeRecords.sort((a, b) => b.date.localeCompare(a.date));
+  renderPledgeRecords();
+  calc();
+  writeToFirestore();
 }
 
 // ── 主要股價抓取 ──
