@@ -352,7 +352,6 @@
       <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#73726c;border-radius:2px;"></span>保守 10%</span>
       <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#185FA5;border-radius:2px;"></span>中性 15%</span>
       <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#BA7517;border-radius:2px;"></span>樂觀 20%</span>
-      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#27500A;border-radius:2px;"></span>積極 30%</span>
     </div>
     <canvas id="proj-chart"></canvas>
   </div>
@@ -784,10 +783,9 @@ function calc() {
 // NASDAQ 100 歷史約 15-18%，正2 ETF 長期因每日重置有損耗，實際低於 2x
 // 保守：NASDAQ 走弱或修正年份；積極：2020-2021 大牛市水準
 const SCENARIOS = [
-  { label: '保守 10%',  rate: 0.10, color: '#73726c' },
+  { label: '保守 10%', rate: 0.10, color: '#73726c' },
   { label: '中性 15%', rate: 0.15, color: '#185FA5' },
   { label: '樂觀 20%', rate: 0.20, color: '#BA7517' },
-  { label: '積極 30%', rate: 0.30, color: '#27500A' },
 ];
 let _projYears = 5;
 
