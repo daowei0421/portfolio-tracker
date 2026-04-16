@@ -75,6 +75,16 @@
   .stock-tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; font-weight: 500; }
   .stock-662 { background: #EBF2FB; color: #185FA5; }
   .stock-670 { background: #FEF3E2; color: #BA7517; }
+  .proj-yr-btn { font-size: 13px; padding: 5px 14px; border-radius: 6px; border: 0.5px solid rgba(0,0,0,0.2); background: #f5f4f0; color: #73726c; cursor: pointer; font-weight: 500; }
+  .proj-yr-btn.active { background: #185FA5; color: #fff; border-color: #185FA5; }
+  #proj-chart { width: 100%; display: block; }
+  .proj-table-wrap { overflow-x: auto; }
+  .proj-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .proj-tbl th { font-size: 11px; color: #73726c; font-weight: 500; padding: 4px 8px 8px; text-align: right; border-bottom: 0.5px solid rgba(0,0,0,0.1); }
+  .proj-tbl th:first-child { text-align: left; }
+  .proj-tbl td { padding: 10px 8px; border-bottom: 0.5px solid rgba(0,0,0,0.06); text-align: right; }
+  .proj-tbl td:first-child { text-align: left; font-weight: 500; }
+  .proj-tbl tr:last-child td { border-bottom: none; }
   @media (max-width: 480px) {
     .grid3 { grid-template-columns: 1fr 1fr; }
     .row input[type=number], .row input[type=date], .row select { width: 100px; }
@@ -109,6 +119,7 @@
 <div class="tabs">
   <button class="tab-btn active" id="tab-btn-main" onclick="switchTab('main', this)">主頁</button>
   <button class="tab-btn" id="tab-btn-pledge-log" onclick="switchTab('pledge-log', this)">質押紀錄</button>
+  <button class="tab-btn" id="tab-btn-projection" onclick="switchTab('projection', this)">報酬預估</button>
 </div>
 
 <!-- ===== TAB 1：主頁 ===== -->
@@ -306,6 +317,46 @@
   資料同步至 Firebase · 73 配置追蹤器
 </div>
 
+<!-- ===== TAB 3：報酬預估 ===== -->
+<div id="tab-projection" class="tab-panel">
+
+  <div class="section">
+    <div class="section-title">預估設定</div>
+    <div class="row">
+      <label>初始資產</label>
+      <span class="val" id="proj_init_display">NT$0</span>
+    </div>
+    <div class="row">
+      <label>每月投入（元）</label>
+      <input type="number" id="proj_contrib" value="70000" oninput="renderProjection()">
+    </div>
+    <div class="row" style="border-bottom:none;">
+      <label>預估年限</label>
+      <div style="display:flex;gap:6px;">
+        <button class="proj-yr-btn active" onclick="setProjectionYears(5, this)">5 年</button>
+        <button class="proj-yr-btn" onclick="setProjectionYears(10, this)">10 年</button>
+        <button class="proj-yr-btn" onclick="setProjectionYears(15, this)">15 年</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
+      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#73726c;border-radius:2px;"></span>保守 8%</span>
+      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#185FA5;border-radius:2px;"></span>中性 12%</span>
+      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#BA7517;border-radius:2px;"></span>樂觀 18%</span>
+      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#27500A;border-radius:2px;"></span>積極 25%</span>
+    </div>
+    <canvas id="proj-chart"></canvas>
+  </div>
+
+  <div class="section">
+    <div class="section-title">預估結果摘要</div>
+    <div id="proj-table"></div>
+  </div>
+
+</div><!-- end tab-projection -->
+
 </div><!-- end #app -->
 
 <script>
@@ -399,6 +450,7 @@ function switchTab(name, btn) {
   document.getElementById('tab-' + name).classList.add('active');
   btn.classList.add('active');
   if (name === 'pledge-log') syncRecPrice();
+  if (name === 'projection') renderProjection();
 }
 
 function syncRecPrice() {
@@ -685,6 +737,131 @@ function calc() {
       calert.textContent = '擔保品不足！（' + col_pct.toFixed(1) + '%）建議補入擔保品約 ' + fmt(col_need) + ' 或部分還款';
     }
   }
+}
+
+// ── 報酬預估 ──
+const SCENARIOS = [
+  { label: '保守 8%',  rate: 0.08, color: '#73726c' },
+  { label: '中性 12%', rate: 0.12, color: '#185FA5' },
+  { label: '樂觀 18%', rate: 0.18, color: '#BA7517' },
+  { label: '積極 25%', rate: 0.25, color: '#27500A' },
+];
+let _projYears = 5;
+
+function setProjectionYears(y, btn) {
+  _projYears = y;
+  document.querySelectorAll('.proj-yr-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderProjection();
+}
+
+function calcProjection(pv, monthlyContrib, years, annualRate) {
+  const r = annualRate / 12;
+  let value = pv;
+  const pts = [{ year: 0, value: pv }];
+  for (let m = 1; m <= years * 12; m++) {
+    value = value * (1 + r) + monthlyContrib;
+    if (m % 12 === 0) pts.push({ year: m / 12, value });
+  }
+  return pts;
+}
+
+function renderProjection() {
+  const pv = parseFloat(document.getElementById('total_assets').textContent.replace(/[^0-9]/g, '')) || 0;
+  const contrib = parseFloat(document.getElementById('proj_contrib').value) || 0;
+  const years = _projYears;
+
+  document.getElementById('proj_init_display').textContent = fmt(pv);
+
+  const data = SCENARIOS.map(s => ({
+    ...s,
+    pts: calcProjection(pv, contrib, years, s.rate)
+  }));
+
+  // ── Canvas 圖表 ──
+  const canvas = document.getElementById('proj-chart');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement.clientWidth - 40;
+  const H = 240;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = { top: 16, right: 16, bottom: 36, left: 72 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+
+  const maxVal = Math.max(...data.map(s => s.pts[s.pts.length - 1].value));
+  const niceMax = Math.ceil(maxVal / 1e7) * 1e7;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // grid
+  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+  ctx.lineWidth = 1;
+  const gridLines = 4;
+  for (let i = 0; i <= gridLines; i++) {
+    const y = pad.top + (ch / gridLines) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+    const val = niceMax * (1 - i / gridLines);
+    ctx.fillStyle = '#73726c';
+    ctx.font = '10px -apple-system, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(val >= 1e8 ? (val / 1e8).toFixed(1) + '億' : (val / 1e4).toFixed(0) + '萬', pad.left - 6, y + 4);
+  }
+
+  // x labels
+  ctx.fillStyle = '#73726c';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  for (let y = 0; y <= years; y++) {
+    const x = pad.left + (cw / years) * y;
+    ctx.fillText(y === 0 ? '現在' : y + '年', x, H - 10);
+  }
+
+  // lines
+  data.forEach(s => {
+    ctx.beginPath();
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    s.pts.forEach((pt, i) => {
+      const x = pad.left + (cw / years) * pt.year;
+      const y = pad.top + ch * (1 - pt.value / niceMax);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // end dot + label
+    const last = s.pts[s.pts.length - 1];
+    const ex = pad.left + cw;
+    const ey = pad.top + ch * (1 - last.value / niceMax);
+    ctx.beginPath();
+    ctx.arc(ex, ey, 3, 0, Math.PI * 2);
+    ctx.fillStyle = s.color;
+    ctx.fill();
+  });
+
+  // ── 結果表格 ──
+  const totalContrib = pv + contrib * 12 * years;
+  let html = '<div class="proj-table-wrap"><table class="proj-tbl"><thead><tr><th>情境</th><th>最終資產</th><th>總投入</th><th>總獲利</th><th>獲利倍數</th></tr></thead><tbody>';
+  data.forEach(s => {
+    const final = s.pts[s.pts.length - 1].value;
+    const gain = final - totalContrib;
+    const mult = (final / totalContrib).toFixed(1);
+    html += `<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${s.color};margin-right:6px;vertical-align:middle;"></span>${s.label}</td>
+      <td style="font-weight:600;">${fmt(final)}</td>
+      <td>${fmt(totalContrib)}</td>
+      <td style="color:${gain >= 0 ? '#27500A' : '#A32D2D'}">${gain >= 0 ? '+' : ''}${fmt(gain)}</td>
+      <td>${mult}x</td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+  document.getElementById('proj-table').innerHTML = html;
 }
 
 // 初始化日期
