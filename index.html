@@ -193,7 +193,7 @@
       <div class="section-title" style="margin-bottom:0;">下次買入建議</div>
       <div style="display:flex;align-items:center;gap:6px;">
         <span style="font-size:11px;color:#73726c;">每月投入</span>
-        <input type="number" id="monthly_input" value="70000" style="width:90px;font-size:12px;padding:3px 6px;border:0.5px solid rgba(0,0,0,0.2);border-radius:6px;background:#f5f4f0;color:#1a1a18;text-align:right;outline:none;" oninput="calc(); save()">
+        <input type="number" id="monthly_input" value="70000" style="width:90px;font-size:12px;padding:3px 6px;border:0.5px solid rgba(0,0,0,0.2);border-radius:6px;background:#f5f4f0;color:#1a1a18;text-align:right;outline:none;" oninput="calc(); writeToFirestore()">
         <span style="font-size:11px;color:#73726c;">元</span>
       </div>
     </div>
@@ -349,10 +349,10 @@
 
   <div class="section">
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
-      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#73726c;border-radius:2px;"></span>保守 8%</span>
-      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#185FA5;border-radius:2px;"></span>中性 12%</span>
-      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#BA7517;border-radius:2px;"></span>樂觀 18%</span>
-      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#27500A;border-radius:2px;"></span>積極 25%</span>
+      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#73726c;border-radius:2px;"></span>保守 10%</span>
+      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#185FA5;border-radius:2px;"></span>中性 15%</span>
+      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#BA7517;border-radius:2px;"></span>樂觀 20%</span>
+      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#27500A;border-radius:2px;"></span>積極 30%</span>
     </div>
     <canvas id="proj-chart"></canvas>
   </div>
@@ -360,6 +360,15 @@
   <div class="section">
     <div class="section-title">預估結果摘要</div>
     <div id="proj-table"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">退休目標試算</div>
+    <div class="row">
+      <label>退休目標金額（萬）</label>
+      <input type="number" id="retire_target" value="3000" oninput="renderProjection()">
+    </div>
+    <div id="retire-table" style="margin-top:12px;"></div>
   </div>
 
 </div><!-- end tab-projection -->
@@ -771,11 +780,14 @@ function calc() {
 }
 
 // ── 報酬預估 ──
+// 73配置（70% 00662 + 30% 00670L 正2）歷史年化報酬參考：
+// NASDAQ 100 歷史約 15-18%，正2 ETF 長期因每日重置有損耗，實際低於 2x
+// 保守：NASDAQ 走弱或修正年份；積極：2020-2021 大牛市水準
 const SCENARIOS = [
-  { label: '保守 8%',  rate: 0.08, color: '#73726c' },
-  { label: '中性 12%', rate: 0.12, color: '#185FA5' },
-  { label: '樂觀 18%', rate: 0.18, color: '#BA7517' },
-  { label: '積極 25%', rate: 0.25, color: '#27500A' },
+  { label: '保守 10%',  rate: 0.10, color: '#73726c' },
+  { label: '中性 15%', rate: 0.15, color: '#185FA5' },
+  { label: '樂觀 20%', rate: 0.20, color: '#BA7517' },
+  { label: '積極 30%', rate: 0.30, color: '#27500A' },
 ];
 let _projYears = 5;
 
@@ -893,6 +905,35 @@ function renderProjection() {
   });
   html += '</tbody></table></div>';
   document.getElementById('proj-table').innerHTML = html;
+
+  // ── 退休試算 ──
+  const target = (parseFloat(document.getElementById('retire_target').value) || 3000) * 10000;
+  let retireHtml = '<div class="proj-table-wrap"><table class="proj-tbl"><thead><tr><th>情境</th><th>還需要</th><th>達標時資產</th></tr></thead><tbody>';
+  SCENARIOS.forEach(s => {
+    const r = s.rate / 12;
+    // 公式：n = log((target + contrib/r) / (pv + contrib/r)) / log(1+r)  (月數)
+    let months;
+    if (pv >= target) {
+      months = 0;
+    } else if (r === 0) {
+      months = contrib > 0 ? Math.ceil((target - pv) / contrib) : Infinity;
+    } else {
+      const ratio = (target + contrib / r) / (pv + contrib / r);
+      if (ratio <= 0) { months = Infinity; }
+      else { months = Math.log(ratio) / Math.log(1 + r); }
+    }
+    const yrs = Math.ceil(months / 12);
+    const finalVal = calcProjection(pv, contrib, yrs, s.rate);
+    const fv = finalVal[finalVal.length - 1].value;
+    const dot = `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${s.color};margin-right:6px;vertical-align:middle;"></span>`;
+    retireHtml += `<tr>
+      <td>${dot}${s.label}</td>
+      <td style="font-weight:600;">${months === 0 ? '已達標' : isFinite(yrs) ? yrs + ' 年' : '無法達標'}</td>
+      <td>${isFinite(yrs) ? fmt(fv) : '—'}</td>
+    </tr>`;
+  });
+  retireHtml += '</tbody></table></div>';
+  document.getElementById('retire-table').innerHTML = retireHtml;
 }
 
 // 初始化日期
