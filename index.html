@@ -89,6 +89,18 @@
     .grid3 { grid-template-columns: 1fr 1fr; }
     .row input[type=number], .row input[type=date], .row select { width: 100px; }
   }
+
+  /* 資產歷史 */
+  .hist-range-btns { display: flex; gap: 4px; }
+  .hist-range-btn { font-size: 12px; padding: 4px 11px; border-radius: 6px; border: 0.5px solid rgba(0,0,0,0.2); background: #f5f4f0; color: #73726c; cursor: pointer; font-weight: 500; }
+  .hist-range-btn.active { background: #185FA5; color: #fff; border-color: #185FA5; }
+  #hist-chart { width: 100%; display: block; }
+  .hist-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .hist-tbl th { font-size: 11px; color: #73726c; font-weight: 500; padding: 4px 8px 8px; text-align: right; border-bottom: 0.5px solid rgba(0,0,0,0.1); }
+  .hist-tbl th:first-child { text-align: left; }
+  .hist-tbl td { padding: 8px; border-bottom: 0.5px solid rgba(0,0,0,0.06); text-align: right; }
+  .hist-tbl td:first-child { text-align: left; }
+  .hist-tbl tr:last-child td { border-bottom: none; }
 </style>
 </head>
 <body>
@@ -120,6 +132,7 @@
   <button class="tab-btn active" id="tab-btn-main" onclick="switchTab('main', this)">主頁</button>
   <button class="tab-btn" id="tab-btn-pledge-log" onclick="switchTab('pledge-log', this)">質押紀錄</button>
   <button class="tab-btn" id="tab-btn-projection" onclick="switchTab('projection', this)">報酬預估</button>
+  <button class="tab-btn" id="tab-btn-history" onclick="switchTab('history', this)">資產歷史</button>
 </div>
 
 <!-- ===== TAB 1：主頁 ===== -->
@@ -327,14 +340,14 @@
     </div>
     <div class="row">
       <label>每月投入（元）</label>
-      <input type="number" id="proj_contrib" value="70000" oninput="renderProjection()">
+      <input type="number" id="proj_contrib" value="70000" oninput="renderProjection(); save()">
     </div>
     <div class="row" style="border-bottom:none;">
       <label>預估年限</label>
       <div style="display:flex;gap:6px;">
-        <button class="proj-yr-btn active" onclick="setProjectionYears(5, this)">5 年</button>
-        <button class="proj-yr-btn" onclick="setProjectionYears(10, this)">10 年</button>
-        <button class="proj-yr-btn" onclick="setProjectionYears(15, this)">15 年</button>
+        <button class="proj-yr-btn active" data-years="5" onclick="setProjectionYears(5, this)">5 年</button>
+        <button class="proj-yr-btn" data-years="10" onclick="setProjectionYears(10, this)">10 年</button>
+        <button class="proj-yr-btn" data-years="15" onclick="setProjectionYears(15, this)">15 年</button>
       </div>
     </div>
   </div>
@@ -357,12 +370,37 @@
     <div class="section-title">退休目標試算</div>
     <div class="row">
       <label>退休目標金額（萬）</label>
-      <input type="number" id="retire_target" value="3000" oninput="renderProjection()">
+      <input type="number" id="retire_target" value="3000" oninput="renderProjection(); save()">
     </div>
     <div id="retire-table" style="margin-top:12px;"></div>
   </div>
 
 </div><!-- end tab-projection -->
+
+<!-- ===== TAB 4：資產歷史 ===== -->
+<div id="tab-history" class="tab-panel">
+
+  <div class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="section-title" style="margin-bottom:0;">資產走勢</div>
+      <div class="hist-range-btns">
+        <button class="hist-range-btn active" data-months="1" onclick="setHistRange(1, this)">1M</button>
+        <button class="hist-range-btn" data-months="3" onclick="setHistRange(3, this)">3M</button>
+        <button class="hist-range-btn" data-months="6" onclick="setHistRange(6, this)">6M</button>
+        <button class="hist-range-btn" data-months="12" onclick="setHistRange(12, this)">1Y</button>
+        <button class="hist-range-btn" data-months="0" onclick="setHistRange(0, this)">ALL</button>
+      </div>
+    </div>
+    <canvas id="hist-chart"></canvas>
+    <div id="hist-summary" class="grid2" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">歷史紀錄</div>
+    <div id="hist-list"><div style="font-size:13px;color:#73726c;padding:8px 0;">尚無歷史資料</div></div>
+  </div>
+
+</div><!-- end tab-history -->
 
 </div><!-- end #app -->
 
@@ -382,6 +420,7 @@ const db = firebase.firestore();
 let currentUser = null;
 let _pledgeRecords = [];
 let _loanRecords = [];
+let _assetSnapshots = [];
 
 // ── Auth ──
 auth.onAuthStateChanged(user => {
@@ -421,6 +460,13 @@ async function loadFromFirestore() {
       });
       _pledgeRecords = Array.isArray(data.pledge_records) ? data.pledge_records : [];
       _loanRecords = Array.isArray(data.loan_records) ? data.loan_records : [];
+      _assetSnapshots = Array.isArray(data.asset_snapshots) ? data.asset_snapshots : [];
+      if (data.proj_years) {
+        _projYears = data.proj_years;
+        document.querySelectorAll('.proj-yr-btn').forEach(b => {
+          b.classList.toggle('active', parseInt(b.dataset.years) === _projYears);
+        });
+      }
     }
   } catch(e) {
     console.error('載入失敗', e);
@@ -428,6 +474,8 @@ async function loadFromFirestore() {
   renderPledgeRecords();
   renderLoanRecords();
   calc();
+  recordTodaySnapshot();
+  writeToFirestore();
   fetchPrices();
 }
 
@@ -439,16 +487,20 @@ function save() {
 
 async function writeToFirestore() {
   if (!currentUser) return;
+  recordTodaySnapshot();
   const data = {};
   KEYS.forEach(k => { data[k] = parseFloat(document.getElementById(k).value) || 0; });
   data.pledge_records = _pledgeRecords;
   data.loan_records = _loanRecords;
+  data.proj_years = _projYears;
+  data.asset_snapshots = _assetSnapshots;
   try {
     await db.collection('users').doc(currentUser.uid).collection('data').doc('main').set(data);
     const badge = document.getElementById('save-badge');
     badge.classList.add('show');
     clearTimeout(window._badgeTimer);
     window._badgeTimer = setTimeout(() => badge.classList.remove('show'), 1500);
+    if (document.getElementById('tab-history').classList.contains('active')) renderAssetHistory();
   } catch(e) {
     console.error('儲存失敗', e);
   }
@@ -462,6 +514,7 @@ function switchTab(name, btn) {
   btn.classList.add('active');
   if (name === 'pledge-log') syncRecPrice();
   if (name === 'projection') renderProjection();
+  if (name === 'history') renderAssetHistory();
 }
 
 function syncRecPrice() {
@@ -471,7 +524,7 @@ function syncRecPrice() {
 }
 
 // ── localStorage keys（for export/import only）──
-const KEYS = ['qty662', 'qty670', 'p662', 'p670', 'monthly_salary', 'monthly_input', 'loan1', 'rate1', 'loan2', 'rate2'];
+const KEYS = ['qty662', 'qty670', 'p662', 'p670', 'monthly_salary', 'monthly_input', 'loan1', 'rate1', 'loan2', 'rate2', 'proj_contrib', 'retire_target'];
 
 // ── 質押紀錄 ──
 function getPledgeRecords() { return _pledgeRecords; }
@@ -889,6 +942,7 @@ function setProjectionYears(y, btn) {
   document.querySelectorAll('.proj-yr-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderProjection();
+  save();
 }
 
 function calcProjection(pv, monthlyContrib, years, annualRate) {
@@ -1031,6 +1085,144 @@ function renderProjection() {
 
 // 初始化日期
 document.getElementById('rec_date').value = new Date().toISOString().slice(0, 10);
+
+// ── 資產快照 ──
+function recordTodaySnapshot() {
+  const total = parseFloat(document.getElementById('total_assets').textContent.replace(/[^0-9]/g, '')) || 0;
+  if (total === 0) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const q662 = parseFloat(document.getElementById('qty662').value) || 0;
+  const p662v = parseFloat(document.getElementById('p662').value) || 0;
+  const q670 = parseFloat(document.getElementById('qty670').value) || 0;
+  const p670v = parseFloat(document.getElementById('p670').value) || 0;
+  const val662 = q662 * p662v;
+  const val670 = q670 * p670v;
+  const snap = {
+    date: today,
+    total,
+    val662,
+    val670,
+    pct662: total > 0 ? parseFloat((val662 / total * 100).toFixed(1)) : 0,
+    pct670: total > 0 ? parseFloat((val670 / total * 100).toFixed(1)) : 0
+  };
+  const idx = _assetSnapshots.findIndex(s => s.date === today);
+  if (idx >= 0) _assetSnapshots[idx] = snap;
+  else _assetSnapshots.push(snap);
+  _assetSnapshots.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// ── 資產歷史 ──
+let _histMonths = 1;
+
+function setHistRange(months, btn) {
+  _histMonths = months;
+  document.querySelectorAll('.hist-range-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAssetHistory();
+}
+
+function renderAssetHistory() {
+  let filtered = _assetSnapshots;
+  if (_histMonths > 0) {
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - _histMonths);
+    const cutStr = cutoff.toISOString().slice(0, 10);
+    filtered = _assetSnapshots.filter(s => s.date >= cutStr);
+  }
+
+  const canvas = document.getElementById('hist-chart');
+  const summaryEl = document.getElementById('hist-summary');
+  const listEl = document.getElementById('hist-list');
+
+  if (filtered.length === 0) {
+    canvas.style.display = 'none';
+    summaryEl.innerHTML = '';
+    listEl.innerHTML = '<div style="font-size:13px;color:#73726c;padding:8px 0;">此區間無資料</div>';
+    return;
+  }
+
+  canvas.style.display = 'block';
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement.clientWidth - 40;
+  const H = 200;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = { top: 16, right: 16, bottom: 36, left: 72 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+
+  const vals = filtered.map(s => s.total);
+  const minVal = Math.min(...vals);
+  const maxVal = Math.max(...vals);
+  const spread = maxVal - minVal || maxVal * 0.1 || 1;
+  const niceMax = maxVal + spread * 0.12;
+  const niceMin = Math.max(0, minVal - spread * 0.12);
+
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (ch / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+    const v = niceMax - (niceMax - niceMin) * (i / 4);
+    ctx.fillStyle = '#73726c';
+    ctx.font = '10px -apple-system, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(v >= 1e8 ? (v / 1e8).toFixed(1) + '億' : (v / 1e4).toFixed(0) + '萬', pad.left - 6, y + 4);
+  }
+
+  const n = filtered.length;
+  const step = Math.max(1, Math.floor(n / 5));
+  ctx.fillStyle = '#73726c';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  filtered.forEach((s, i) => {
+    if (i % step !== 0 && i !== n - 1) return;
+    const x = pad.left + (cw / Math.max(n - 1, 1)) * i;
+    ctx.fillText(s.date.slice(5), x, H - 10);
+  });
+
+  ctx.beginPath();
+  ctx.strokeStyle = '#185FA5';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  filtered.forEach((s, i) => {
+    const x = pad.left + (cw / Math.max(n - 1, 1)) * i;
+    const y = pad.top + ch * (1 - (s.total - niceMin) / (niceMax - niceMin));
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  const last = filtered[n - 1];
+  const ex = pad.left + (n > 1 ? cw : cw / 2);
+  const ey = pad.top + ch * (1 - (last.total - niceMin) / (niceMax - niceMin));
+  ctx.beginPath(); ctx.arc(ex, ey, 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#185FA5'; ctx.fill();
+
+  const first = filtered[0];
+  const change = last.total - first.total;
+  const changePct = first.total > 0 ? (change / first.total * 100) : 0;
+  const cc = change >= 0 ? '#27500A' : '#A32D2D';
+  summaryEl.innerHTML = `
+    <div class="metric"><div class="metric-label">區間起始</div><div class="metric-value">${fmt(first.total)}</div></div>
+    <div class="metric"><div class="metric-label">目前總資產</div><div class="metric-value">${fmt(last.total)}</div></div>
+    <div class="metric"><div class="metric-label">區間變化</div><div class="metric-value" style="color:${cc}">${change >= 0 ? '+' : ''}${fmt(change)}</div></div>
+    <div class="metric"><div class="metric-label">報酬率</div><div class="metric-value" style="color:${cc}">${changePct >= 0 ? '+' : ''}${changePct.toFixed(1)}%</div></div>
+  `;
+
+  let html = '<div style="overflow-x:auto;"><table class="hist-tbl"><thead><tr><th>日期</th><th>總資產</th><th>00662</th><th>00670L</th></tr></thead><tbody>';
+  [...filtered].reverse().forEach(s => {
+    html += `<tr><td>${s.date}</td><td style="font-weight:500;">${fmt(s.total)}</td><td style="color:#185FA5;">${fmt(s.val662)}</td><td style="color:#BA7517;">${fmt(s.val670)}</td></tr>`;
+  });
+  html += '</tbody></table></div>';
+  listEl.innerHTML = html;
+}
 </script>
 </body>
 </html>
