@@ -418,6 +418,20 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 let currentUser = null;
+
+// ── 共用資料設定 ──
+// 名單內的帳號共用同一份資料（讀寫同一個 Firestore 文件）
+const SHARED_EMAILS = ['wei671749@gmail.com', 'pwang1015@gmail.com'];
+const SHARED_DOC_ID = 'household-73';
+
+function isShared() {
+  return currentUser && SHARED_EMAILS.includes((currentUser.email || '').toLowerCase());
+}
+function dataDocRef() {
+  if (isShared()) return db.collection('shared').doc(SHARED_DOC_ID);
+  return db.collection('users').doc(currentUser.uid).collection('data').doc('main');
+}
+
 let _pledgeRecords = [];
 let _loanRecords = [];
 let _assetSnapshots = [];
@@ -452,7 +466,13 @@ function signOut() {
 async function loadFromFirestore() {
   if (!currentUser) return;
   try {
-    const doc = await db.collection('users').doc(currentUser.uid).collection('data').doc('main').get();
+    const ref = dataDocRef();
+    let doc = await ref.get();
+    // 第一次切換到共用模式時，把個人舊資料搬到共用文件，避免資料消失
+    if (!doc.exists && isShared()) {
+      const old = await db.collection('users').doc(currentUser.uid).collection('data').doc('main').get();
+      if (old.exists) { await ref.set(old.data()); doc = await ref.get(); }
+    }
     if (doc.exists) {
       const data = doc.data();
       KEYS.forEach(k => {
@@ -495,7 +515,7 @@ async function writeToFirestore() {
   data.proj_years = _projYears;
   data.asset_snapshots = _assetSnapshots;
   try {
-    await db.collection('users').doc(currentUser.uid).collection('data').doc('main').set(data);
+    await dataDocRef().set(data);
     const badge = document.getElementById('save-badge');
     badge.classList.add('show');
     clearTimeout(window._badgeTimer);
