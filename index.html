@@ -180,9 +180,10 @@
     </div>
     <div class="divider"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
-      <span style="font-size:13px;font-weight:500;color:#1a1a18;">總資產</span>
+      <span style="font-size:13px;font-weight:500;color:#1a1a18;">淨資產</span>
       <span style="font-size:18px;font-weight:600;color:#1a1a18;" id="total_assets">NT$0</span>
     </div>
+    <div style="font-size:11px;color:#73726c;text-align:right;">股票 + 房子 − 房貸 − 質押借款</div>
   </div>
 
   <div class="section">
@@ -218,6 +219,7 @@
 
   <div class="section">
     <div class="section-title">房貸資訊</div>
+    <div class="row"><label>房子現值（萬）</label><input type="number" id="house_val" value="0" oninput="calc(); save()"></div>
     <div class="row"><label>每月薪資（元）</label><input type="number" id="monthly_salary" value="150000" oninput="calc(); save()"></div>
     <div class="row"><label>一般房貸餘額（萬）</label><input type="number" id="loan1" value="0" oninput="calc(); save()"></div>
     <div class="row"><label>一般房貸利率（%）</label><input type="number" id="rate1" value="0" step="0.01" oninput="calc(); save()"></div>
@@ -544,7 +546,7 @@ function syncRecPrice() {
 }
 
 // ── localStorage keys（for export/import only）──
-const KEYS = ['qty662', 'qty670', 'p662', 'p670', 'monthly_salary', 'monthly_input', 'loan1', 'rate1', 'loan2', 'rate2', 'proj_contrib', 'retire_target'];
+const KEYS = ['qty662', 'qty670', 'p662', 'p670', 'house_val', 'monthly_salary', 'monthly_input', 'loan1', 'rate1', 'loan2', 'rate2', 'proj_contrib', 'retire_target'];
 
 // ── 質押紀錄 ──
 function getPledgeRecords() { return _pledgeRecords; }
@@ -836,7 +838,6 @@ function calc() {
   document.getElementById('v670_pled').textContent = fmt(s670 * p670);
   document.getElementById('v670').textContent = fmt(val670);
   document.getElementById('total').textContent = fmt(total);
-  document.getElementById('total_assets').textContent = fmt(total);
 
   const pct662 = total > 0 ? (val662 / total * 100) : 0;
   const pct670 = total > 0 ? (val670 / total * 100) : 0;
@@ -944,6 +945,11 @@ function calc() {
   document.getElementById('summary_pledge').textContent = fmt(pledge_monthly);
   document.getElementById('summary_total').textContent = fmt(total_monthly);
   document.getElementById('interest_ratio').textContent = (total_monthly / monthly_salary * 100).toFixed(1) + '%';
+
+  // ── 淨資產 = 股票市值 + 房子現值 − 房貸 − 質押借款 ──
+  const house_val = (parseFloat(document.getElementById('house_val').value) || 0) * 10000;
+  const net_worth = total + house_val - loan1 - loan2 - total_loan_amt;
+  document.getElementById('total_assets').textContent = fmt(net_worth);
 }
 
 // ── 報酬預估 ──
@@ -977,7 +983,7 @@ function calcProjection(pv, monthlyContrib, years, annualRate) {
 }
 
 function renderProjection() {
-  const pv = parseFloat(document.getElementById('total_assets').textContent.replace(/[^0-9]/g, '')) || 0;
+  const pv = parseFloat(document.getElementById('total').textContent.replace(/[^0-9]/g, '')) || 0;
   const contrib = parseFloat(document.getElementById('proj_contrib').value) || parseFloat(document.getElementById('monthly_input').value) || 70000;
   const years = _projYears;
 
@@ -1108,7 +1114,7 @@ document.getElementById('rec_date').value = new Date().toISOString().slice(0, 10
 
 // ── 資產快照 ──
 function recordTodaySnapshot() {
-  const total = parseFloat(document.getElementById('total_assets').textContent.replace(/[^0-9]/g, '')) || 0;
+  const total = parseFloat(document.getElementById('total').textContent.replace(/[^0-9]/g, '')) || 0;
   if (total === 0) return;
   const today = new Date().toISOString().slice(0, 10);
   const q662 = parseFloat(document.getElementById('qty662').value) || 0;
