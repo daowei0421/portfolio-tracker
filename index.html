@@ -379,6 +379,7 @@
       <label>退休目標金額（萬）</label>
       <input type="number" id="retire_target" value="3000" oninput="renderProjection(); save()">
     </div>
+    <div id="retire-progress" style="margin-top:14px;"></div>
     <div id="retire-table" style="margin-top:12px;"></div>
   </div>
 
@@ -1087,7 +1088,26 @@ function renderProjection() {
 
   // ── 退休試算 ──
   const target = (parseFloat(document.getElementById('retire_target').value) || 3000) * 10000;
-  let retireHtml = '<div class="proj-table-wrap"><table class="proj-tbl"><thead><tr><th>情境</th><th>還需要</th><th>達標時資產</th></tr></thead><tbody>';
+
+  // ── 達成進度（以股票市值計，不含房子）──
+  const rawPct = target > 0 ? (pv / target * 100) : 0;
+  const barPct = Math.min(rawPct, 100);
+  const remain = Math.max(0, target - pv);
+  document.getElementById('retire-progress').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+      <span style="font-size:12px;color:#73726c;">達成進度（股票市值 ÷ 目標）</span>
+      <span style="font-size:16px;font-weight:600;color:${pv >= target ? '#27500A' : '#185FA5'};">${rawPct.toFixed(1)}%</span>
+    </div>
+    <div style="height:8px;background:#ece9e0;border-radius:4px;overflow:hidden;">
+      <div style="height:100%;width:${barPct}%;background:${pv >= target ? '#27500A' : '#185FA5'};border-radius:4px;transition:width .3s;"></div>
+    </div>
+    <div style="font-size:11px;color:#73726c;margin-top:6px;display:flex;justify-content:space-between;">
+      <span>目前 ${fmt(pv)}</span>
+      <span style="font-weight:500;color:#1a1a18;">${pv >= target ? '已達標 🎉' : '還差 ' + fmt(remain)}</span>
+      <span>目標 ${fmt(target)}</span>
+    </div>`;
+
+  let retireHtml ='<div class="proj-table-wrap"><table class="proj-tbl"><thead><tr><th>情境</th><th>還需要</th><th>達標時資產</th></tr></thead><tbody>';
   SCENARIOS.forEach(s => {
     const r = s.rate / 12;
     // 公式：n = log((target + contrib/r) / (pv + contrib/r)) / log(1+r)  (月數)
