@@ -180,10 +180,9 @@
     </div>
     <div class="divider"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
-      <span style="font-size:13px;font-weight:500;color:#1a1a18;">淨資產</span>
+      <span style="font-size:13px;font-weight:500;color:#1a1a18;">股票市值</span>
       <span style="font-size:18px;font-weight:600;color:#1a1a18;" id="total_assets">NT$0</span>
     </div>
-    <div style="font-size:11px;color:#73726c;text-align:right;">股票 + 房子 − 房貸 − 質押借款</div>
   </div>
 
   <div class="section">
@@ -230,6 +229,12 @@
       <div class="metric"><div class="metric-label">每月利息總計</div><div class="metric-value" id="monthly_interest">NT$0</div></div>
       <div class="metric"><div class="metric-label">年化利息總支出</div><div class="metric-value" id="annual_interest">NT$0</div></div>
     </div>
+    <div class="divider"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
+      <span style="font-size:13px;font-weight:500;color:#1a1a18;">淨資產</span>
+      <span style="font-size:18px;font-weight:600;color:#1a1a18;" id="net_worth_display">NT$0</span>
+    </div>
+    <div style="font-size:11px;color:#73726c;text-align:right;">股票 + 房子 − 房貸 − 質押借款</div>
   </div>
 
   <div class="section">
@@ -838,6 +843,7 @@ function calc() {
   document.getElementById('v670_pled').textContent = fmt(s670 * p670);
   document.getElementById('v670').textContent = fmt(val670);
   document.getElementById('total').textContent = fmt(total);
+  document.getElementById('total_assets').textContent = fmt(total);
 
   const pct662 = total > 0 ? (val662 / total * 100) : 0;
   const pct670 = total > 0 ? (val670 / total * 100) : 0;
@@ -949,7 +955,7 @@ function calc() {
   // ── 淨資產 = 股票市值 + 房子現值 − 房貸 − 質押借款 ──
   const house_val = (parseFloat(document.getElementById('house_val').value) || 0) * 10000;
   const net_worth = total + house_val - loan1 - loan2 - total_loan_amt;
-  document.getElementById('total_assets').textContent = fmt(net_worth);
+  document.getElementById('net_worth_display').textContent = fmt(net_worth);
 }
 
 // ── 報酬預估 ──
