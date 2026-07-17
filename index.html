@@ -323,8 +323,22 @@
       <div class="metric"><div class="metric-label">質押月利息</div><div class="metric-value" id="summary_pledge">NT$0</div></div>
       <div class="metric"><div class="metric-label">信貸月利息</div><div class="metric-value" id="summary_credit">NT$0</div></div>
       <div class="metric"><div class="metric-label">合計月利息</div><div class="metric-value" id="summary_total" style="color:#185FA5;font-size:17px;">NT$0</div></div>
-      <div class="metric"><div class="metric-label">利息 vs 月薪比</div><div class="metric-value" id="interest_ratio">0%</div></div>
+      <div class="metric"><div class="metric-label">債務支出 vs 月薪</div><div class="metric-value" id="interest_ratio">0%</div></div>
     </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">每月現金流</div>
+    <div class="row"><label>生活費（元）</label><input type="number" id="living_cost" value="0" oninput="calc(); save()"></div>
+    <div style="font-size:11px;color:#73726c;padding:6px 0 2px;">信貸算的是本利攤還月付（本金也要掏現金），不是只有利息，這才是真實負擔</div>
+    <div class="divider"></div>
+    <div id="cashflow-rows"></div>
+    <div class="divider"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
+      <span style="font-size:13px;font-weight:600;color:#1a1a18;">每月結餘</span>
+      <span style="font-size:18px;font-weight:600;" id="cashflow_net">NT$0</span>
+    </div>
+    <div id="cashflow-alert" class="alert-box alert-ok" style="margin-top:8px;">填入生活費後顯示可支配結餘</div>
   </div>
 
   <div class="section">
@@ -634,7 +648,7 @@ function syncRecPrice() {
 }
 
 // ── localStorage keys（for export/import only）──
-const KEYS = ['qty662', 'qty670', 'p662', 'p670', 'house_val', 'monthly_salary', 'monthly_input', 'loan1', 'rate1', 'loan2', 'rate2', 'credit_amt', 'credit_rate_float', 'credit_rate_fixed', 'proj_contrib', 'retire_target'];
+const KEYS = ['qty662', 'qty670', 'p662', 'p670', 'house_val', 'monthly_salary', 'monthly_input', 'loan1', 'rate1', 'loan2', 'rate2', 'credit_amt', 'credit_rate_float', 'credit_rate_fixed', 'living_cost', 'proj_contrib', 'retire_target'];
 // credit_start 是日期字串，不能走 KEYS（會被 parseFloat 變成 0），另外處理
 
 // ── 信貸方案：總期 7 年（84 期），前 2 年按 10 年期試算月付，之後攤還剩餘本金 ──
@@ -1364,7 +1378,50 @@ function calc() {
   document.getElementById('summary_pledge').textContent = fmt(pledge_monthly);
   document.getElementById('summary_credit').textContent = fmt(credit_monthly_interest);
   document.getElementById('summary_total').textContent = fmt(total_monthly);
-  document.getElementById('interest_ratio').textContent = (total_monthly / monthly_salary * 100).toFixed(1) + '%';
+
+  // ── 每月現金流 ──
+  // 債務真實支出：房貸利息 + 質押利息 + 信貸「本利攤還月付」（本金也是現金，不能只算利息）
+  const debt_payment = monthly + pledge_monthly + credit_pmt_now;
+  document.getElementById('interest_ratio').textContent = monthly_salary > 0 ? (debt_payment / monthly_salary * 100).toFixed(1) + '%' : '—';
+
+  const living_cost = parseFloat(document.getElementById('living_cost').value) || 0;
+  const net_cash = monthly_salary - monthly - pledge_monthly - credit_pmt_now - monthly_input - living_cost;
+
+  const rowHtml = (label, amt, sign) => {
+    const color = sign > 0 ? '#27500A' : (amt === 0 ? '#73726c' : '#A32D2D');
+    const prefix = amt === 0 ? '' : (sign > 0 ? '+' : '−');
+    return `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px;">
+      <span style="color:#73726c;">${label}</span>
+      <span style="color:${color};">${prefix}${fmt(Math.abs(amt))}</span></div>`;
+  };
+  document.getElementById('cashflow-rows').innerHTML =
+    rowHtml('薪資收入', monthly_salary, 1)
+    + rowHtml('房貸利息', monthly, -1)
+    + rowHtml('質押利息', pledge_monthly, -1)
+    + rowHtml('信貸月付', credit_pmt_now, -1)
+    + rowHtml('每月投入', monthly_input, -1)
+    + rowHtml('生活費', living_cost, -1);
+
+  const netEl = document.getElementById('cashflow_net');
+  netEl.textContent = (net_cash >= 0 ? '+' : '−') + fmt(Math.abs(net_cash));
+  netEl.style.color = net_cash >= 0 ? '#27500A' : '#A32D2D';
+
+  // 第 25 期信貸月付跳升後的結餘前瞻（尚未進入後段時才提醒）
+  const calert2 = document.getElementById('cashflow-alert');
+  const inPhase1 = credit_amt > 0 && (!credit_start || k < CREDIT_PHASE1_MONTHS);
+  const net_phase2 = net_cash - (credit_pmt2 - credit_pmt_now);
+  if (net_cash < 0) {
+    calert2.className = 'alert-box alert-danger';
+    calert2.textContent = '每月入不敷出 ' + fmt(-net_cash) + '，需動用存款或減少投入';
+  } else if (inPhase1 && credit_pmt2 > credit_pmt_now) {
+    calert2.className = net_phase2 < 0 ? 'alert-box alert-warn' : 'alert-box alert-ok';
+    calert2.textContent = '⚠ 信貸第 25 期起月付升為 ' + fmt(credit_pmt2)
+      + '，屆時每月結餘變為 ' + (net_phase2 >= 0 ? '+' : '−') + fmt(Math.abs(net_phase2))
+      + (net_phase2 < 0 ? '（將入不敷出，建議提前調整每月投入）' : '');
+  } else {
+    calert2.className = 'alert-box alert-ok';
+    calert2.textContent = '每月結餘 ' + fmt(net_cash) + '，現金流為正';
+  }
 
   // ── 淨資產 = 股票市值 + 房子現值 − 房貸 − 質押借款 − 信貸餘額 ──
   const house_val = (parseFloat(document.getElementById('house_val').value) || 0) * 10000;
