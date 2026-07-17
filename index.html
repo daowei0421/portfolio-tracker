@@ -799,14 +799,35 @@ function saveCostEdit(id) {
   writeToFirestore();
 }
 
+const COST_COLLAPSED_COUNT = 2;   // 預設只顯示最新 2 筆
+let _costExpanded = false;
+
+function toggleCostList() {
+  _costExpanded = !_costExpanded;
+  renderCostRecords();
+}
+
+// 刪除前先要求二次確認，避免誤觸
+function confirmDeleteCost(id) {
+  const cell = document.getElementById('cost-act-' + id);
+  if (!cell) return;
+  cell.innerHTML = `
+    <button class="btn btn-small btn-danger" style="margin-right:4px;" onclick="deleteCostRecord('${id}')">確定刪除</button>
+    <button class="btn btn-small" style="background:#f0f0ee;color:#73726c;border:0.5px solid rgba(0,0,0,0.15);" onclick="renderCostRecords()">取消</button>
+  `;
+}
+
 function renderCostRecords() {
   const el = document.getElementById('cost-records-list');
   if (_costRecords.length === 0) {
     el.innerHTML = '<div style="font-size:13px;color:#73726c;padding:8px 0;">尚無買入紀錄 —— 改動上方持股股數時會自動記錄，也可手動補登過去的交易</div>';
     return;
   }
+  const shown = _costExpanded ? _costRecords : _costRecords.slice(0, COST_COLLAPSED_COUNT);
+  const hidden = _costRecords.length - shown.length;
+
   let html = '<table class="rec-table"><thead><tr><th>日期</th><th>標的</th><th style="text-align:right;">股數</th><th style="text-align:right;">成交價</th><th style="text-align:right;">金額</th><th></th></tr></thead><tbody>';
-  _costRecords.forEach(r => {
+  shown.forEach(r => {
     const amt = Number(r.shares) * Number(r.price);
     const tag = r.stock === '662'
       ? '<span class="stock-tag stock-662">00662</span>'
@@ -818,13 +839,19 @@ function renderCostRecords() {
       <td style="text-align:right;color:${isSell ? '#A32D2D' : '#1a1a18'};">${Number(r.shares) > 0 ? '+' : ''}${r.shares}</td>
       <td style="text-align:right;">${parseFloat(r.price).toFixed(2)}</td>
       <td style="text-align:right;color:${isSell ? '#A32D2D' : '#1a1a18'};">${fmt(amt)}</td>
-      <td style="text-align:right;white-space:nowrap;">
+      <td style="text-align:right;white-space:nowrap;" id="cost-act-${r.id}">
         <button class="btn btn-small" style="background:#f0f0ee;color:#1a1a18;border:0.5px solid rgba(0,0,0,0.15);margin-right:4px;" onclick="editCostRecord('${r.id}')">編輯</button>
-        <button class="btn btn-small btn-danger" onclick="deleteCostRecord('${r.id}')">刪除</button>
+        <button class="btn btn-small btn-danger" onclick="confirmDeleteCost('${r.id}')">刪除</button>
       </td>
     </tr>`;
   });
   html += '</tbody></table>';
+
+  if (_costRecords.length > COST_COLLAPSED_COUNT) {
+    html += `<button onclick="toggleCostList()" class="btn btn-small" style="width:100%;margin-top:8px;background:#f5f4f0;color:#73726c;border:0.5px solid rgba(0,0,0,0.12);">`
+      + (_costExpanded ? '收合，只顯示最新 ' + COST_COLLAPSED_COUNT + ' 筆' : '顯示其餘 ' + hidden + ' 筆（共 ' + _costRecords.length + ' 筆）')
+      + '</button>';
+  }
   el.innerHTML = html;
 }
 
