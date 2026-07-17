@@ -457,10 +457,14 @@
         <button class="hist-range-btn" data-months="0" onclick="setHistRange(0, this)">ALL</button>
       </div>
     </div>
-    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">
       <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#185FA5;border-radius:2px;"></span>市值</span>
       <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:0;border-top:2px dashed #BA7517;"></span>投入成本</span>
+      <label style="font-size:12px;color:#73726c;display:flex;align-items:center;gap:4px;cursor:pointer;margin-left:auto;">
+        <input type="checkbox" checked onchange="toggleHideFlat(this)" style="width:auto;margin:0;">隱藏休市日
+      </label>
     </div>
+    <div id="hist-flat-note" style="font-size:11px;color:#73726c;margin-bottom:6px;min-height:14px;"></div>
     <canvas id="hist-chart"></canvas>
     <div id="hist-summary" class="grid2" style="margin-top:10px;"></div>
   </div>
@@ -1574,6 +1578,12 @@ function recordTodaySnapshot() {
 
 // ── 資產歷史 ──
 let _histMonths = 1;
+let _hideFlat = true;   // 預設隱藏休市日（與前一筆完全無變化的快照）
+
+function toggleHideFlat(el) {
+  _hideFlat = el.checked;
+  renderAssetHistory();
+}
 
 function setHistRange(months, btn) {
   _histMonths = months;
@@ -1590,6 +1600,22 @@ function renderAssetHistory() {
     const cutStr = cutoff.toISOString().slice(0, 10);
     filtered = _assetSnapshots.filter(s => s.date >= cutStr);
   }
+
+  // 隱藏休市日：兩檔市值都與前一筆完全相同 = 當天沒開盤，只是延續前一日的價格。
+  // 用「有沒有變化」而不是「星期幾」來判斷，才不會把週末快照裡才記到的
+  // 前一交易日行情（例如週五沒開 app、週日才記到）一起濾掉，國定假日也自動涵蓋。
+  let flatCount = 0;
+  if (_hideFlat) {
+    const compact = [];
+    filtered.forEach(s => {
+      const prev = compact[compact.length - 1];
+      if (prev && s.val662 === prev.val662 && s.val670 === prev.val670) { flatCount++; return; }
+      compact.push(s);
+    });
+    filtered = compact;
+  }
+  const flatNote = document.getElementById('hist-flat-note');
+  if (flatNote) flatNote.textContent = _hideFlat && flatCount > 0 ? '已隱藏 ' + flatCount + ' 筆休市日' : '';
 
   const canvas = document.getElementById('hist-chart');
   const summaryEl = document.getElementById('hist-summary');
@@ -1712,26 +1738,29 @@ function renderAssetHistory() {
   `;
 
   let html = '<div style="overflow-x:auto;"><table class="hist-tbl"><thead><tr><th>日期</th><th>市值</th>'
-    + (hasCost ? '<th>累計成本</th><th>損益（當日漲跌）</th>' : '')
-    + '<th>00662</th><th>00670L</th></tr></thead><tbody>';
+    + (hasCost ? '<th>當日投入</th><th>累計成本</th><th>損益（當日漲跌）</th>' : '')
+    + '</tr></thead><tbody>';
   [...filtered].reverse().forEach((s, ri) => {
     const idx = n - 1 - ri;
     const c = costs[idx];
     const d = c > 0 ? s.total - c : 0;
 
     // 當日漲跌用「損益的變化」，這樣當天新投入的錢會自動抵銷，只反映市場漲跌
-    let dailyHtml = '';
+    let dailyHtml = '', investHtml = '—';
     if (c > 0 && idx > 0) {
       const cPrev = costs[idx - 1];
       if (cPrev > 0) {
         const delta = d - (filtered[idx - 1].total - cPrev);
         dailyHtml = ` <span style="font-size:11px;color:${delta >= 0 ? '#27500A' : '#A32D2D'};">(${delta >= 0 ? '+' : '−'}${Math.round(Math.abs(delta)).toLocaleString()})</span>`;
+        const invested = c - cPrev;   // 當天成本的增加 = 你那天投入的錢
+        if (invested > 0) investHtml = '<span style="color:#185FA5;font-weight:500;">+' + fmt(invested) + '</span>';
+        else if (invested < 0) investHtml = '<span style="color:#A32D2D;font-weight:500;">−' + fmt(Math.abs(invested)) + '</span>';
       }
     }
 
     html += `<tr><td>${s.date}</td><td style="font-weight:500;">${fmt(s.total)}</td>`
-      + (hasCost ? `<td style="color:#BA7517;">${c > 0 ? fmt(c) : '—'}</td><td style="color:${d >= 0 ? '#27500A' : '#A32D2D'};white-space:nowrap;">${c > 0 ? (d >= 0 ? '+' : '−') + fmt(Math.abs(d)) + dailyHtml : '—'}</td>` : '')
-      + `<td style="color:#185FA5;">${fmt(s.val662)}</td><td style="color:#BA7517;">${fmt(s.val670)}</td></tr>`;
+      + (hasCost ? `<td style="white-space:nowrap;">${investHtml}</td><td style="color:#BA7517;">${c > 0 ? fmt(c) : '—'}</td><td style="color:${d >= 0 ? '#27500A' : '#A32D2D'};white-space:nowrap;">${c > 0 ? (d >= 0 ? '+' : '−') + fmt(Math.abs(d)) + dailyHtml : '—'}</td>` : '')
+      + '</tr>';
   });
   html += '</tbody></table></div>';
   listEl.innerHTML = html;
