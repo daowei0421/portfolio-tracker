@@ -142,7 +142,7 @@
     <div class="section-title">持股輸入</div>
     <div class="row">
       <label>00662 持股（股）</label>
-      <input type="number" id="qty662" value="0" min="0" oninput="calc(); save()">
+      <input type="number" id="qty662" value="0" min="0" oninput="calc(); save()" onchange="detectQtyChange()">
       <span class="val" id="v662">NT$0</span>
     </div>
     <div class="row">
@@ -155,7 +155,7 @@
 
     <div class="row">
       <label>00670L 持股（股）</label>
-      <input type="number" id="qty670" value="0" min="0" oninput="calc(); save()">
+      <input type="number" id="qty670" value="0" min="0" oninput="calc(); save()" onchange="detectQtyChange()">
       <span class="val" id="v670">NT$0</span>
     </div>
     <div class="row">
@@ -183,6 +183,40 @@
       <span style="font-size:13px;font-weight:500;color:#1a1a18;">股票市值</span>
       <span style="font-size:18px;font-weight:600;color:#1a1a18;" id="total_assets">NT$0</span>
     </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">投入成本</div>
+    <div class="grid3">
+      <div class="metric"><div class="metric-label">總投入成本</div><div class="metric-value" id="cost_total">NT$0</div></div>
+      <div class="metric"><div class="metric-label">未實現損益</div><div class="metric-value" id="cost_pnl">NT$0</div></div>
+      <div class="metric"><div class="metric-label">報酬率</div><div class="metric-value" id="cost_roi">—</div></div>
+    </div>
+    <div class="grid2" style="margin-top:8px;">
+      <div class="metric"><div class="metric-label">00662 成本 ／ 均價</div><div class="metric-value" id="cost662" style="font-size:13px;">—</div></div>
+      <div class="metric"><div class="metric-label">00670L 成本 ／ 均價</div><div class="metric-value" id="cost670" style="font-size:13px;">—</div></div>
+    </div>
+    <div id="cost-alert" class="alert-box alert-ok" style="margin-top:8px;">尚無買入紀錄</div>
+  </div>
+
+  <div class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="section-title" style="margin-bottom:0;">買入紀錄</div>
+      <button onclick="toggleCostForm()" id="cost-toggle-btn" class="btn btn-small">手動新增</button>
+    </div>
+    <div id="cost-form" style="display:none;margin-bottom:12px;">
+      <div class="row"><label>日期</label><input type="date" id="cost_date"></div>
+      <div class="row"><label>標的</label>
+        <select id="cost_stock" onchange="syncCostPrice()"><option value="662">00662</option><option value="670">00670L</option></select>
+      </div>
+      <div class="row"><label>股數（賣出填負數）</label><input type="number" id="cost_shares" placeholder="0"></div>
+      <div class="row" style="border-bottom:none;"><label>成交價</label>
+        <input type="number" id="cost_price" step="0.01" placeholder="0.00">
+      </div>
+      <button onclick="addCostRecord()" class="btn btn-primary" style="width:100%;">新增紀錄</button>
+      <div id="cost-err" style="font-size:12px;color:#A32D2D;margin-top:6px;min-height:16px;"></div>
+    </div>
+    <div id="cost-records-list"></div>
   </div>
 
   <div class="section">
@@ -423,6 +457,10 @@
         <button class="hist-range-btn" data-months="0" onclick="setHistRange(0, this)">ALL</button>
       </div>
     </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;">
+      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:3px;background:#185FA5;border-radius:2px;"></span>市值</span>
+      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:24px;height:0;border-top:2px dashed #BA7517;"></span>投入成本</span>
+    </div>
     <canvas id="hist-chart"></canvas>
     <div id="hist-summary" class="grid2" style="margin-top:10px;"></div>
   </div>
@@ -467,6 +505,8 @@ function dataDocRef() {
 let _pledgeRecords = [];
 let _loanRecords = [];
 let _assetSnapshots = [];
+let _costRecords = [];   // { id, date, stock:'662'|'670', shares(賣出為負), price, auto }
+let _lastQty = null;     // { q662, q670 } 上次已知股數，用來偵測你改動總股數
 
 // ── Auth ──
 auth.onAuthStateChanged(user => {
@@ -513,6 +553,8 @@ async function loadFromFirestore() {
       if (data.credit_start) document.getElementById('credit_start').value = data.credit_start;
       _pledgeRecords = Array.isArray(data.pledge_records) ? data.pledge_records : [];
       _loanRecords = Array.isArray(data.loan_records) ? data.loan_records : [];
+      _costRecords = Array.isArray(data.cost_records) ? data.cost_records : [];
+      _lastQty = data.last_qty || null;
       _assetSnapshots = Array.isArray(data.asset_snapshots) ? data.asset_snapshots : [];
       if (data.proj_years) {
         _projYears = data.proj_years;
@@ -524,8 +566,16 @@ async function loadFromFirestore() {
   } catch(e) {
     console.error('載入失敗', e);
   }
+  // 首次啟用成本追蹤：拿目前股數當基準，避免既有持股被誤記成今天買進
+  if (!_lastQty) {
+    _lastQty = {
+      q662: parseFloat(document.getElementById('qty662').value) || 0,
+      q670: parseFloat(document.getElementById('qty670').value) || 0
+    };
+  }
   renderPledgeRecords();
   renderLoanRecords();
+  renderCostRecords();
   calc();
   recordTodaySnapshot();
   writeToFirestore();
@@ -546,6 +596,8 @@ async function writeToFirestore() {
   data.credit_start = document.getElementById('credit_start').value || '';
   data.pledge_records = _pledgeRecords;
   data.loan_records = _loanRecords;
+  data.cost_records = _costRecords;
+  if (_lastQty) data.last_qty = _lastQty;
   data.proj_years = _projYears;
   data.asset_snapshots = _assetSnapshots;
   try {
@@ -611,6 +663,170 @@ function monthsSince(startStr) {
 
 // ── 質押紀錄 ──
 function getPledgeRecords() { return _pledgeRecords; }
+
+// ── 投入成本 ──
+// 依日期順序累計；賣出時用移動平均成本扣減。untilDate 可算出「當時」的成本
+function costOf(stock, untilDate) {
+  let shares = 0, cost = 0;
+  _costRecords
+    .filter(r => r.stock === stock && (!untilDate || r.date <= untilDate))
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .forEach(r => {
+      const n = Number(r.shares), p = Number(r.price);
+      if (n > 0) { cost += n * p; shares += n; }
+      else {
+        const sell = Math.min(-n, shares);
+        const avg = shares > 0 ? cost / shares : 0;
+        cost -= avg * sell;
+        shares -= sell;
+      }
+    });
+  return { shares, cost, avg: shares > 0 ? cost / shares : 0 };
+}
+
+// 你改總股數時自動記一筆（用當下股價）。沒股價就不記，由下方的股數核對提醒你補登
+function detectQtyChange() {
+  const q662 = parseFloat(document.getElementById('qty662').value) || 0;
+  const q670 = parseFloat(document.getElementById('qty670').value) || 0;
+  if (!_lastQty) { _lastQty = { q662, q670 }; return; }
+
+  const p662 = parseFloat(document.getElementById('p662').value) || 0;
+  const p670 = parseFloat(document.getElementById('p670').value) || 0;
+  const today = new Date().toISOString().slice(0, 10);
+  let changed = false;
+
+  [['662', q662, _lastQty.q662, p662], ['670', q670, _lastQty.q670, p670]].forEach(([stock, now, before, price]) => {
+    const d = now - before;
+    if (d === 0 || price <= 0) return;
+    _costRecords.push({ id: Date.now().toString() + stock, date: today, stock, shares: d, price, auto: true });
+    changed = true;
+  });
+
+  _lastQty = { q662, q670 };
+  if (changed) {
+    _costRecords.sort((a, b) => b.date.localeCompare(a.date));
+    renderCostRecords();
+  }
+  calc();
+  writeToFirestore();
+}
+
+function toggleCostForm() {
+  const f = document.getElementById('cost-form');
+  const b = document.getElementById('cost-toggle-btn');
+  const show = f.style.display === 'none';
+  f.style.display = show ? 'block' : 'none';
+  b.textContent = show ? '收起' : '手動新增';
+  if (show) {
+    if (!document.getElementById('cost_date').value) {
+      document.getElementById('cost_date').value = new Date().toISOString().slice(0, 10);
+    }
+    syncCostPrice();
+  }
+}
+
+function syncCostPrice() {
+  const stock = document.getElementById('cost_stock').value;
+  const price = parseFloat(document.getElementById(stock === '662' ? 'p662' : 'p670').value) || 0;
+  if (price > 0) document.getElementById('cost_price').value = price.toFixed(2);
+}
+
+function addCostRecord() {
+  const date = document.getElementById('cost_date').value;
+  const stock = document.getElementById('cost_stock').value;
+  const shares = parseFloat(document.getElementById('cost_shares').value);
+  const price = parseFloat(document.getElementById('cost_price').value);
+  const err = document.getElementById('cost-err');
+
+  if (!date) { err.textContent = '請填入日期'; return; }
+  if (!shares || shares === 0) { err.textContent = '請填入股數（賣出填負數）'; return; }
+  if (!price || price <= 0) { err.textContent = '請填入成交價'; return; }
+  err.textContent = '';
+
+  _costRecords.push({ id: Date.now().toString(), date, stock, shares, price, auto: false });
+  _costRecords.sort((a, b) => b.date.localeCompare(a.date));
+
+  document.getElementById('cost_shares').value = '';
+  document.getElementById('cost_price').value = '';
+  renderCostRecords();
+  calc();
+  writeToFirestore();
+}
+
+function deleteCostRecord(id) {
+  _costRecords = _costRecords.filter(r => r.id !== id);
+  renderCostRecords();
+  calc();
+  writeToFirestore();
+}
+
+function editCostRecord(id) {
+  const r = _costRecords.find(x => x.id === id);
+  if (!r) return;
+  const row = document.getElementById('cost-row-' + id);
+  const st = 'font-size:12px;padding:3px 5px;border:0.5px solid rgba(0,0,0,0.2);border-radius:5px;background:#fff;';
+  row.innerHTML = `
+    <td><input type="date" value="${r.date}" id="cedit-date-${id}" style="width:120px;${st}"></td>
+    <td>
+      <select id="cedit-stock-${id}" style="width:80px;${st}">
+        <option value="662" ${r.stock==='662'?'selected':''}>00662</option>
+        <option value="670" ${r.stock==='670'?'selected':''}>00670L</option>
+      </select>
+    </td>
+    <td style="text-align:right;"><input type="number" value="${r.shares}" id="cedit-shares-${id}" style="width:70px;text-align:right;${st}"></td>
+    <td style="text-align:right;"><input type="number" value="${r.price}" step="0.01" id="cedit-price-${id}" style="width:70px;text-align:right;${st}"></td>
+    <td></td>
+    <td style="text-align:right;white-space:nowrap;">
+      <button class="btn btn-small" style="background:#185FA5;color:#fff;margin-right:4px;" onclick="saveCostEdit('${id}')">確認</button>
+      <button class="btn btn-small" style="background:#f0f0ee;color:#73726c;border:0.5px solid rgba(0,0,0,0.15);" onclick="renderCostRecords()">取消</button>
+    </td>
+  `;
+}
+
+function saveCostEdit(id) {
+  const idx = _costRecords.findIndex(x => x.id === id);
+  if (idx < 0) return;
+  const date = document.getElementById('cedit-date-' + id).value;
+  const stock = document.getElementById('cedit-stock-' + id).value;
+  const shares = parseFloat(document.getElementById('cedit-shares-' + id).value);
+  const price = parseFloat(document.getElementById('cedit-price-' + id).value);
+  if (!date || !shares || shares === 0 || !price || price <= 0) { alert('請填入完整資料（股數不可為 0）'); return; }
+  _costRecords[idx] = { ..._costRecords[idx], date, stock, shares, price, auto: false };
+  _costRecords.sort((a, b) => b.date.localeCompare(a.date));
+  renderCostRecords();
+  calc();
+  writeToFirestore();
+}
+
+function renderCostRecords() {
+  const el = document.getElementById('cost-records-list');
+  if (_costRecords.length === 0) {
+    el.innerHTML = '<div style="font-size:13px;color:#73726c;padding:8px 0;">尚無買入紀錄 —— 改動上方持股股數時會自動記錄，也可手動補登過去的交易</div>';
+    return;
+  }
+  let html = '<table class="rec-table"><thead><tr><th>日期</th><th>標的</th><th style="text-align:right;">股數</th><th style="text-align:right;">成交價</th><th style="text-align:right;">金額</th><th></th></tr></thead><tbody>';
+  _costRecords.forEach(r => {
+    const amt = Number(r.shares) * Number(r.price);
+    const tag = r.stock === '662'
+      ? '<span class="stock-tag stock-662">00662</span>'
+      : '<span class="stock-tag stock-670">00670L</span>';
+    const isSell = Number(r.shares) < 0;
+    const autoTag = r.auto ? '<span style="font-size:10px;color:#73726c;margin-left:4px;">自動</span>' : '';
+    html += `<tr id="cost-row-${r.id}">
+      <td>${r.date}${autoTag}</td><td>${tag}</td>
+      <td style="text-align:right;color:${isSell ? '#A32D2D' : '#1a1a18'};">${Number(r.shares) > 0 ? '+' : ''}${r.shares}</td>
+      <td style="text-align:right;">${parseFloat(r.price).toFixed(2)}</td>
+      <td style="text-align:right;color:${isSell ? '#A32D2D' : '#1a1a18'};">${fmt(amt)}</td>
+      <td style="text-align:right;white-space:nowrap;">
+        <button class="btn btn-small" style="background:#f0f0ee;color:#1a1a18;border:0.5px solid rgba(0,0,0,0.15);margin-right:4px;" onclick="editCostRecord('${r.id}')">編輯</button>
+        <button class="btn btn-small btn-danger" onclick="deleteCostRecord('${r.id}')">刪除</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
 
 function addPledgeRecord() {
   const date = document.getElementById('rec_date').value;
@@ -839,6 +1055,8 @@ function exportData() {
   data.credit_start = document.getElementById('credit_start').value || '';
   data.pledge_records = _pledgeRecords;
   data.loan_records = _loanRecords;
+  data.cost_records = _costRecords;
+  if (_lastQty) data.last_qty = _lastQty;
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -860,8 +1078,11 @@ function importData(event) {
       if (data.credit_start) document.getElementById('credit_start').value = data.credit_start;
       if (Array.isArray(data.pledge_records)) _pledgeRecords = data.pledge_records;
       if (Array.isArray(data.loan_records)) _loanRecords = data.loan_records;
+      if (Array.isArray(data.cost_records)) _costRecords = data.cost_records;
+      if (data.last_qty) _lastQty = data.last_qty;
       renderPledgeRecords();
       renderLoanRecords();
+      renderCostRecords();
       calc();
       writeToFirestore();
       document.getElementById('backup-status').textContent = '還原成功，資料已同步至雲端';
@@ -902,6 +1123,37 @@ function calc() {
   document.getElementById('v670').textContent = fmt(val670);
   document.getElementById('total').textContent = fmt(total);
   document.getElementById('total_assets').textContent = fmt(total);
+
+  // ── 投入成本 ──
+  const c662 = costOf('662');
+  const c670 = costOf('670');
+  const cost_total = c662.cost + c670.cost;
+  const pnl = total - cost_total;
+  const pnlColor = pnl >= 0 ? '#27500A' : '#A32D2D';
+
+  document.getElementById('cost_total').textContent = fmt(cost_total);
+  const pnlEl = document.getElementById('cost_pnl');
+  pnlEl.textContent = cost_total > 0 ? (pnl >= 0 ? '+' : '−') + fmt(Math.abs(pnl)) : '—';
+  pnlEl.style.color = cost_total > 0 ? pnlColor : '#1a1a18';
+  const roiEl = document.getElementById('cost_roi');
+  const roi = cost_total > 0 ? (pnl / cost_total * 100) : 0;
+  roiEl.textContent = cost_total > 0 ? (roi >= 0 ? '+' : '') + roi.toFixed(1) + '%' : '—';
+  roiEl.style.color = cost_total > 0 ? pnlColor : '#1a1a18';
+  document.getElementById('cost662').textContent = c662.shares > 0 ? fmt(c662.cost) + ' ／ ' + c662.avg.toFixed(2) : '—';
+  document.getElementById('cost670').textContent = c670.shares > 0 ? fmt(c670.cost) + ' ／ ' + c670.avg.toFixed(2) : '—';
+
+  // 股數核對：紀錄推算出的股數 vs 你填的總股數，不符就是有交易沒記到
+  const costAlert = document.getElementById('cost-alert');
+  if (_costRecords.length === 0) {
+    costAlert.className = 'alert-box alert-ok';
+    costAlert.textContent = '尚無買入紀錄 —— 補登交易後才會顯示成本與報酬率';
+  } else if (c662.shares !== q662 || c670.shares !== q670) {
+    costAlert.className = 'alert-box alert-warn';
+    costAlert.textContent = '紀錄股數（00662 ' + c662.shares + '、00670L ' + c670.shares + '）與目前持股（' + q662 + '、' + q670 + '）不符 —— 有交易沒記到，成本會低估，請補登';
+  } else {
+    costAlert.className = 'alert-box alert-ok';
+    costAlert.textContent = '紀錄股數與目前持股相符，成本計算完整';
+  }
 
   const pct662 = total > 0 ? (val662 / total * 100) : 0;
   const pct670 = total > 0 ? (val670 / total * 100) : 0;
@@ -1319,8 +1571,12 @@ function renderAssetHistory() {
   const ch = H - pad.top - pad.bottom;
 
   const vals = filtered.map(s => s.total);
-  const minVal = Math.min(...vals);
-  const maxVal = Math.max(...vals);
+  // 每個快照日期「當時」的累計成本
+  const costs = filtered.map(s => costOf('662', s.date).cost + costOf('670', s.date).cost);
+  const hasCost = costs.some(c => c > 0);
+  const scaleVals = hasCost ? vals.concat(costs.filter(c => c > 0)) : vals;
+  const minVal = Math.min(...scaleVals);
+  const maxVal = Math.max(...scaleVals);
   const spread = maxVal - minVal || maxVal * 0.1 || 1;
   const niceMax = maxVal + spread * 0.12;
   const niceMin = Math.max(0, minVal - spread * 0.12);
@@ -1361,6 +1617,23 @@ function renderAssetHistory() {
   });
   ctx.stroke();
 
+  // 成本線（虛線）—— 與市值線的落差就是未實現損益
+  if (hasCost) {
+    ctx.beginPath();
+    ctx.strokeStyle = '#BA7517';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    let started = false;
+    filtered.forEach((s, i) => {
+      if (costs[i] <= 0) return;
+      const x = pad.left + (cw / Math.max(n - 1, 1)) * i;
+      const y = pad.top + ch * (1 - (costs[i] - niceMin) / (niceMax - niceMin));
+      if (started) ctx.lineTo(x, y); else { ctx.moveTo(x, y); started = true; }
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   const last = filtered[n - 1];
   const ex = pad.left + (n > 1 ? cw : cw / 2);
   const ey = pad.top + ch * (1 - (last.total - niceMin) / (niceMax - niceMin));
@@ -1371,16 +1644,35 @@ function renderAssetHistory() {
   const change = last.total - first.total;
   const changePct = first.total > 0 ? (change / first.total * 100) : 0;
   const cc = change >= 0 ? '#27500A' : '#A32D2D';
+
+  const lastCost = costs[n - 1];
+  const firstCost = costs[0];
+  const invested = lastCost - firstCost;          // 這段期間新投入的成本
+  const pnlNow = lastCost > 0 ? last.total - lastCost : 0;
+  const pc = pnlNow >= 0 ? '#27500A' : '#A32D2D';
+
   summaryEl.innerHTML = `
-    <div class="metric"><div class="metric-label">區間起始</div><div class="metric-value">${fmt(first.total)}</div></div>
-    <div class="metric"><div class="metric-label">目前總資產</div><div class="metric-value">${fmt(last.total)}</div></div>
+    <div class="metric"><div class="metric-label">區間起始市值</div><div class="metric-value">${fmt(first.total)}</div></div>
+    <div class="metric"><div class="metric-label">目前市值</div><div class="metric-value">${fmt(last.total)}</div></div>
     <div class="metric"><div class="metric-label">區間變化</div><div class="metric-value" style="color:${cc}">${change >= 0 ? '+' : ''}${fmt(change)}</div></div>
-    <div class="metric"><div class="metric-label">報酬率</div><div class="metric-value" style="color:${cc}">${changePct >= 0 ? '+' : ''}${changePct.toFixed(1)}%</div></div>
+    <div class="metric"><div class="metric-label">區間漲跌</div><div class="metric-value" style="color:${cc}">${changePct >= 0 ? '+' : ''}${changePct.toFixed(1)}%</div></div>
+    ${hasCost ? `
+    <div class="metric"><div class="metric-label">區間新投入成本</div><div class="metric-value">${fmt(invested)}</div></div>
+    <div class="metric"><div class="metric-label">目前累計成本</div><div class="metric-value">${fmt(lastCost)}</div></div>
+    <div class="metric"><div class="metric-label">未實現損益</div><div class="metric-value" style="color:${pc}">${pnlNow >= 0 ? '+' : '−'}${fmt(Math.abs(pnlNow))}</div></div>
+    <div class="metric"><div class="metric-label">實際報酬率</div><div class="metric-value" style="color:${pc}">${pnlNow >= 0 ? '+' : ''}${(pnlNow / lastCost * 100).toFixed(1)}%</div></div>
+    ` : ''}
   `;
 
-  let html = '<div style="overflow-x:auto;"><table class="hist-tbl"><thead><tr><th>日期</th><th>總資產</th><th>00662</th><th>00670L</th></tr></thead><tbody>';
-  [...filtered].reverse().forEach(s => {
-    html += `<tr><td>${s.date}</td><td style="font-weight:500;">${fmt(s.total)}</td><td style="color:#185FA5;">${fmt(s.val662)}</td><td style="color:#BA7517;">${fmt(s.val670)}</td></tr>`;
+  let html = '<div style="overflow-x:auto;"><table class="hist-tbl"><thead><tr><th>日期</th><th>市值</th>'
+    + (hasCost ? '<th>累計成本</th><th>損益</th>' : '')
+    + '<th>00662</th><th>00670L</th></tr></thead><tbody>';
+  [...filtered].reverse().forEach((s, ri) => {
+    const c = costs[n - 1 - ri];
+    const d = c > 0 ? s.total - c : 0;
+    html += `<tr><td>${s.date}</td><td style="font-weight:500;">${fmt(s.total)}</td>`
+      + (hasCost ? `<td style="color:#BA7517;">${c > 0 ? fmt(c) : '—'}</td><td style="color:${d >= 0 ? '#27500A' : '#A32D2D'};">${c > 0 ? (d >= 0 ? '+' : '−') + fmt(Math.abs(d)) : '—'}</td>` : '')
+      + `<td style="color:#185FA5;">${fmt(s.val662)}</td><td style="color:#BA7517;">${fmt(s.val670)}</td></tr>`;
   });
   html += '</tbody></table></div>';
   listEl.innerHTML = html;
