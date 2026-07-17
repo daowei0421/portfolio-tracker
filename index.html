@@ -229,12 +229,27 @@
       <div class="metric"><div class="metric-label">每月利息總計</div><div class="metric-value" id="monthly_interest">NT$0</div></div>
       <div class="metric"><div class="metric-label">年化利息總支出</div><div class="metric-value" id="annual_interest">NT$0</div></div>
     </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">信貸資訊</div>
+    <div class="row"><label>借款金額（萬）</label><input type="number" id="credit_amt" value="500" oninput="calc(); save()"></div>
+    <div class="row"><label>機動利率（%）</label><input type="number" id="credit_rate_float" value="1.73" step="0.01" oninput="calc(); save()"></div>
+    <div class="row"><label>固定加碼（%）</label><input type="number" id="credit_rate_fixed" value="1.42" step="0.01" oninput="calc(); save()"></div>
+    <div class="row"><label>撥款日期</label><input type="date" id="credit_start" oninput="calc(); save()"></div>
+    <div style="font-size:11px;color:#73726c;padding:6px 0 2px;">方案：總期 7 年（84 期）· 前 2 年按 10 年期試算月付 · 後 5 年攤還剩餘本金</div>
     <div class="divider"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
-      <span style="font-size:13px;font-weight:500;color:#1a1a18;">淨資產</span>
-      <span style="font-size:18px;font-weight:600;color:#1a1a18;" id="net_worth_display">NT$0</span>
+    <div class="grid3">
+      <div class="metric"><div class="metric-label">合計利率</div><div class="metric-value" id="credit_total_rate" style="color:#185FA5;">0%</div></div>
+      <div class="metric"><div class="metric-label">前 2 年月付</div><div class="metric-value" id="credit_pmt1">NT$0</div></div>
+      <div class="metric"><div class="metric-label">後 5 年月付</div><div class="metric-value" id="credit_pmt2">NT$0</div></div>
     </div>
-    <div style="font-size:11px;color:#73726c;text-align:right;">股票 + 房子 − 房貸 − 質押借款</div>
+    <div class="grid3" style="margin-top:8px;">
+      <div class="metric"><div class="metric-label">目前剩餘本金</div><div class="metric-value" id="credit_balance">NT$0</div></div>
+      <div class="metric"><div class="metric-label">目前月付</div><div class="metric-value" id="credit_pmt_now">NT$0</div></div>
+      <div class="metric"><div class="metric-label">本月利息</div><div class="metric-value" id="credit_interest_now">NT$0</div></div>
+    </div>
+    <div id="credit-alert" class="alert-box alert-ok" style="margin-top:8px;">填入撥款日期後顯示繳款進度</div>
   </div>
 
   <div class="section">
@@ -272,9 +287,18 @@
     <div class="grid2">
       <div class="metric"><div class="metric-label">房貸月利息</div><div class="metric-value" id="summary_loan">NT$0</div></div>
       <div class="metric"><div class="metric-label">質押月利息</div><div class="metric-value" id="summary_pledge">NT$0</div></div>
+      <div class="metric"><div class="metric-label">信貸月利息</div><div class="metric-value" id="summary_credit">NT$0</div></div>
       <div class="metric"><div class="metric-label">合計月利息</div><div class="metric-value" id="summary_total" style="color:#185FA5;font-size:17px;">NT$0</div></div>
       <div class="metric"><div class="metric-label">利息 vs 月薪比</div><div class="metric-value" id="interest_ratio">0%</div></div>
     </div>
+  </div>
+
+  <div class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
+      <span style="font-size:13px;font-weight:500;color:#1a1a18;">淨資產</span>
+      <span style="font-size:18px;font-weight:600;color:#1a1a18;" id="net_worth_display">NT$0</span>
+    </div>
+    <div style="font-size:11px;color:#73726c;text-align:right;">股票 + 房子 − 房貸 − 質押借款 − 信貸</div>
   </div>
 
   <div class="section">
@@ -486,6 +510,7 @@ async function loadFromFirestore() {
       KEYS.forEach(k => {
         if (data[k] !== undefined) document.getElementById(k).value = data[k];
       });
+      if (data.credit_start) document.getElementById('credit_start').value = data.credit_start;
       _pledgeRecords = Array.isArray(data.pledge_records) ? data.pledge_records : [];
       _loanRecords = Array.isArray(data.loan_records) ? data.loan_records : [];
       _assetSnapshots = Array.isArray(data.asset_snapshots) ? data.asset_snapshots : [];
@@ -518,6 +543,7 @@ async function writeToFirestore() {
   recordTodaySnapshot();
   const data = {};
   KEYS.forEach(k => { data[k] = parseFloat(document.getElementById(k).value) || 0; });
+  data.credit_start = document.getElementById('credit_start').value || '';
   data.pledge_records = _pledgeRecords;
   data.loan_records = _loanRecords;
   data.proj_years = _projYears;
@@ -552,7 +578,36 @@ function syncRecPrice() {
 }
 
 // ── localStorage keys（for export/import only）──
-const KEYS = ['qty662', 'qty670', 'p662', 'p670', 'house_val', 'monthly_salary', 'monthly_input', 'loan1', 'rate1', 'loan2', 'rate2', 'proj_contrib', 'retire_target'];
+const KEYS = ['qty662', 'qty670', 'p662', 'p670', 'house_val', 'monthly_salary', 'monthly_input', 'loan1', 'rate1', 'loan2', 'rate2', 'credit_amt', 'credit_rate_float', 'credit_rate_fixed', 'proj_contrib', 'retire_target'];
+// credit_start 是日期字串，不能走 KEYS（會被 parseFloat 變成 0），另外處理
+
+// ── 信貸方案：總期 7 年（84 期），前 2 年按 10 年期試算月付，之後攤還剩餘本金 ──
+const CREDIT_TOTAL_MONTHS = 84;
+const CREDIT_PHASE1_MONTHS = 24;
+const CREDIT_AMORT_MONTHS = 120;
+
+// 本利攤還月付金
+function pmtOf(P, n, r) {
+  if (P <= 0 || n <= 0) return 0;
+  if (r === 0) return P / n;
+  return P * r / (1 - Math.pow(1 + r, -n));
+}
+// 繳滿 k 期後的剩餘本金
+function balanceAfter(P, pmt, k, r) {
+  if (P <= 0 || k <= 0) return Math.max(0, P);
+  if (r === 0) return Math.max(0, P - pmt * k);
+  return Math.max(0, P * Math.pow(1 + r, k) - pmt * (Math.pow(1 + r, k) - 1) / r);
+}
+// 撥款日到今天已繳期數
+function monthsSince(startStr) {
+  if (!startStr) return 0;
+  const st = new Date(startStr);
+  if (isNaN(st)) return 0;
+  const now = new Date();
+  let k = (now.getFullYear() - st.getFullYear()) * 12 + (now.getMonth() - st.getMonth());
+  if (now.getDate() < st.getDate()) k -= 1; // 當月繳款日還沒到
+  return Math.max(0, k);
+}
 
 // ── 質押紀錄 ──
 function getPledgeRecords() { return _pledgeRecords; }
@@ -781,6 +836,7 @@ async function fetchPrices() {
 function exportData() {
   const data = {};
   KEYS.forEach(k => { data[k] = document.getElementById(k).value; });
+  data.credit_start = document.getElementById('credit_start').value || '';
   data.pledge_records = _pledgeRecords;
   data.loan_records = _loanRecords;
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -801,6 +857,7 @@ function importData(event) {
     try {
       const data = JSON.parse(e.target.result);
       KEYS.forEach(k => { if (data[k] !== undefined) document.getElementById(k).value = data[k]; });
+      if (data.credit_start) document.getElementById('credit_start').value = data.credit_start;
       if (Array.isArray(data.pledge_records)) _pledgeRecords = data.pledge_records;
       if (Array.isArray(data.loan_records)) _loanRecords = data.loan_records;
       renderPledgeRecords();
@@ -947,15 +1004,68 @@ function calc() {
     palert.textContent = '已超過 60% 上限！目前 ' + pledge_pct.toFixed(1) + '%，請立即還款';
   }
 
-  const total_monthly = monthly + pledge_monthly;
+  // ── 信貸計算 ──
+  const credit_amt = (parseFloat(document.getElementById('credit_amt').value) || 0) * 10000;
+  const credit_rate = (parseFloat(document.getElementById('credit_rate_float').value) || 0)
+                    + (parseFloat(document.getElementById('credit_rate_fixed').value) || 0);
+  const cr = credit_rate / 100 / 12;
+  const credit_start = document.getElementById('credit_start').value;
+  const k = monthsSince(credit_start);
+
+  // 前 2 年用 10 年期算月付；第 24 期後拿剩餘本金用 60 期攤完
+  const credit_pmt1 = pmtOf(credit_amt, CREDIT_AMORT_MONTHS, cr);
+  const credit_b24 = balanceAfter(credit_amt, credit_pmt1, CREDIT_PHASE1_MONTHS, cr);
+  const credit_pmt2 = pmtOf(credit_b24, CREDIT_TOTAL_MONTHS - CREDIT_PHASE1_MONTHS, cr);
+
+  let credit_balance, credit_pmt_now;
+  if (credit_amt <= 0) {
+    credit_balance = 0; credit_pmt_now = 0;
+  } else if (!credit_start) {
+    credit_balance = credit_amt; credit_pmt_now = credit_pmt1;
+  } else if (k >= CREDIT_TOTAL_MONTHS) {
+    credit_balance = 0; credit_pmt_now = 0;
+  } else if (k < CREDIT_PHASE1_MONTHS) {
+    credit_balance = balanceAfter(credit_amt, credit_pmt1, k, cr);
+    credit_pmt_now = credit_pmt1;
+  } else {
+    credit_balance = balanceAfter(credit_b24, credit_pmt2, k - CREDIT_PHASE1_MONTHS, cr);
+    credit_pmt_now = credit_pmt2;
+  }
+  const credit_monthly_interest = credit_balance * cr;
+
+  document.getElementById('credit_total_rate').textContent = credit_rate.toFixed(2) + '%';
+  document.getElementById('credit_pmt1').textContent = fmt(credit_pmt1);
+  document.getElementById('credit_pmt2').textContent = fmt(credit_pmt2);
+  document.getElementById('credit_balance').textContent = fmt(credit_balance);
+  document.getElementById('credit_pmt_now').textContent = fmt(credit_pmt_now);
+  document.getElementById('credit_interest_now').textContent = fmt(credit_monthly_interest);
+
+  const calert = document.getElementById('credit-alert');
+  if (credit_amt <= 0) {
+    calert.className = 'alert-box alert-ok'; calert.textContent = '尚未輸入信貸金額';
+  } else if (!credit_start) {
+    calert.className = 'alert-box alert-warn';
+    calert.textContent = '請填撥款日期，才能算出已繳期數與目前剩餘本金';
+  } else if (k >= CREDIT_TOTAL_MONTHS) {
+    calert.className = 'alert-box alert-ok'; calert.textContent = '信貸已結清（84 期繳完）';
+  } else if (k < CREDIT_PHASE1_MONTHS) {
+    calert.className = 'alert-box alert-ok';
+    calert.textContent = '已繳 ' + k + ' / 84 期 · 前 2 年階段，' + (CREDIT_PHASE1_MONTHS - k) + ' 期後月付調整為 ' + fmt(credit_pmt2);
+  } else {
+    calert.className = 'alert-box alert-ok';
+    calert.textContent = '已繳 ' + k + ' / 84 期 · 後 5 年階段，剩 ' + (CREDIT_TOTAL_MONTHS - k) + ' 期繳完';
+  }
+
+  const total_monthly = monthly + pledge_monthly + credit_monthly_interest;
   document.getElementById('summary_loan').textContent = fmt(monthly);
   document.getElementById('summary_pledge').textContent = fmt(pledge_monthly);
+  document.getElementById('summary_credit').textContent = fmt(credit_monthly_interest);
   document.getElementById('summary_total').textContent = fmt(total_monthly);
   document.getElementById('interest_ratio').textContent = (total_monthly / monthly_salary * 100).toFixed(1) + '%';
 
-  // ── 淨資產 = 股票市值 + 房子現值 − 房貸 − 質押借款 ──
+  // ── 淨資產 = 股票市值 + 房子現值 − 房貸 − 質押借款 − 信貸餘額 ──
   const house_val = (parseFloat(document.getElementById('house_val').value) || 0) * 10000;
-  const net_worth = total + house_val - loan1 - loan2 - total_loan_amt;
+  const net_worth = total + house_val - loan1 - loan2 - total_loan_amt - credit_balance;
   document.getElementById('net_worth_display').textContent = fmt(net_worth);
 }
 
