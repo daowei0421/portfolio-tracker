@@ -877,6 +877,16 @@ function addPledgeRecord() {
   writeToFirestore();
 }
 
+// 刪除前先要求二次確認，避免誤觸
+function confirmDeletePledge(id) {
+  const cell = document.getElementById('pledge-act-' + id);
+  if (!cell) return;
+  cell.innerHTML = `
+    <button class="btn btn-small btn-danger" style="margin-right:4px;" onclick="deletePledgeRecord('${id}')">確定刪除</button>
+    <button class="btn btn-small" style="background:#f0f0ee;color:#73726c;border:0.5px solid rgba(0,0,0,0.15);" onclick="renderPledgeRecords()">取消</button>
+  `;
+}
+
 function deletePledgeRecord(id) {
   _pledgeRecords = _pledgeRecords.filter(r => r.id !== id);
   renderPledgeRecords();
@@ -909,9 +919,9 @@ function renderPledgeRecords() {
       <td style="text-align:right;">${r.shares}</td>
       <td style="text-align:right;">${parseFloat(r.price).toFixed(2)}</td>
       <td style="text-align:right;">${fmt(val)}</td>
-      <td style="text-align:right;white-space:nowrap;">
+      <td style="text-align:right;white-space:nowrap;" id="pledge-act-${r.id}">
         <button class="btn btn-small" style="background:#f0f0ee;color:#1a1a18;border:0.5px solid rgba(0,0,0,0.15);margin-right:4px;" onclick="editPledgeRecord('${r.id}')">編輯</button>
-        <button class="btn btn-small btn-danger" onclick="deletePledgeRecord('${r.id}')">刪除</button>
+        <button class="btn btn-small btn-danger" onclick="confirmDeletePledge('${r.id}')">刪除</button>
       </td>
     </tr>`;
   });
@@ -975,6 +985,16 @@ function addLoanRecord() {
   writeToFirestore();
 }
 
+// 刪除前先要求二次確認，避免誤觸
+function confirmDeleteLoan(id) {
+  const cell = document.getElementById('loan-act-' + id);
+  if (!cell) return;
+  cell.innerHTML = `
+    <button class="btn btn-small btn-danger" style="margin-right:4px;" onclick="deleteLoanRecord('${id}')">確定刪除</button>
+    <button class="btn btn-small" style="background:#f0f0ee;color:#73726c;border:0.5px solid rgba(0,0,0,0.15);" onclick="renderLoanRecords()">取消</button>
+  `;
+}
+
 function deleteLoanRecord(id) {
   _loanRecords = _loanRecords.filter(r => r.id !== id);
   renderLoanRecords();
@@ -1028,9 +1048,9 @@ function renderLoanRecords() {
       <td style="text-align:right;">${r.amt}</td>
       <td style="text-align:right;">${r.rate}%</td>
       <td style="text-align:right;">${fmt(monthly)}</td>
-      <td style="text-align:right;white-space:nowrap;">
+      <td style="text-align:right;white-space:nowrap;" id="loan-act-${r.id}">
         <button class="btn btn-small" style="background:#f0f0ee;color:#1a1a18;border:0.5px solid rgba(0,0,0,0.15);margin-right:4px;" onclick="editLoanRecord('${r.id}')">編輯</button>
-        <button class="btn btn-small btn-danger" onclick="deleteLoanRecord('${r.id}')">刪除</button>
+        <button class="btn btn-small btn-danger" onclick="confirmDeleteLoan('${r.id}')">刪除</button>
       </td>
     </tr>`;
   });
@@ -1692,13 +1712,25 @@ function renderAssetHistory() {
   `;
 
   let html = '<div style="overflow-x:auto;"><table class="hist-tbl"><thead><tr><th>日期</th><th>市值</th>'
-    + (hasCost ? '<th>累計成本</th><th>損益</th>' : '')
+    + (hasCost ? '<th>累計成本</th><th>損益（當日漲跌）</th>' : '')
     + '<th>00662</th><th>00670L</th></tr></thead><tbody>';
   [...filtered].reverse().forEach((s, ri) => {
-    const c = costs[n - 1 - ri];
+    const idx = n - 1 - ri;
+    const c = costs[idx];
     const d = c > 0 ? s.total - c : 0;
+
+    // 當日漲跌用「損益的變化」，這樣當天新投入的錢會自動抵銷，只反映市場漲跌
+    let dailyHtml = '';
+    if (c > 0 && idx > 0) {
+      const cPrev = costs[idx - 1];
+      if (cPrev > 0) {
+        const delta = d - (filtered[idx - 1].total - cPrev);
+        dailyHtml = ` <span style="font-size:11px;color:${delta >= 0 ? '#27500A' : '#A32D2D'};">(${delta >= 0 ? '+' : '−'}${Math.round(Math.abs(delta)).toLocaleString()})</span>`;
+      }
+    }
+
     html += `<tr><td>${s.date}</td><td style="font-weight:500;">${fmt(s.total)}</td>`
-      + (hasCost ? `<td style="color:#BA7517;">${c > 0 ? fmt(c) : '—'}</td><td style="color:${d >= 0 ? '#27500A' : '#A32D2D'};">${c > 0 ? (d >= 0 ? '+' : '−') + fmt(Math.abs(d)) : '—'}</td>` : '')
+      + (hasCost ? `<td style="color:#BA7517;">${c > 0 ? fmt(c) : '—'}</td><td style="color:${d >= 0 ? '#27500A' : '#A32D2D'};white-space:nowrap;">${c > 0 ? (d >= 0 ? '+' : '−') + fmt(Math.abs(d)) + dailyHtml : '—'}</td>` : '')
       + `<td style="color:#185FA5;">${fmt(s.val662)}</td><td style="color:#BA7517;">${fmt(s.val670)}</td></tr>`;
   });
   html += '</tbody></table></div>';
