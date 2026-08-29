@@ -496,6 +496,11 @@
 </div><!-- end #app -->
 
 <script>
+// ── CORS 代理（自架 Cloudflare Worker，見 cloudflare-worker/proxy.js）──
+// corsproxy.io 改成要收費後股價抓取／補登都會失敗，改用自己的 Worker 轉發。
+// 部署完 Worker 後把網址填在這裡（例如 'https://xxx.yyy.workers.dev'）。
+const CORS_PROXY = 'https://73tracker.wei-177.workers.dev';
+
 // ── Firebase 初始化 ──
 firebase.initializeApp({
   apiKey: "AIzaSyBc9o8AYsx3y93LKEEniNfmeOqyi5gtsok",
@@ -1117,7 +1122,7 @@ async function backfillSnapshots(silent) {
     for (const [sym, key] of [['00662.TW', '662'], ['00670L.TW', '670']]) {
       const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + sym
         + '?interval=1d&period1=' + period1 + '&period2=' + period2;
-      const res = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(url));
+      const res = await fetch(CORS_PROXY + '/?url=' + encodeURIComponent(url));
       if (!res.ok) throw new Error('無法連線');
       const data = await res.json();
       const r = data?.chart?.result?.[0];
@@ -1180,7 +1185,7 @@ async function fetchPrices() {
     let got = [];
     for (let i = 0; i < symbols.length; i++) {
       const yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + symbols[i] + '?interval=1d&range=1d';
-      const res = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(yahooUrl));
+      const res = await fetch(CORS_PROXY + '/?url=' + encodeURIComponent(yahooUrl));
       if (!res.ok) throw new Error('無法連線');
       const data = await res.json();
       const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
