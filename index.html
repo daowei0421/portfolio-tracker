@@ -329,10 +329,11 @@
     <div class="grid2">
       <div class="metric"><div class="metric-label">房貸月利息</div><div class="metric-value" id="summary_loan">NT$0</div></div>
       <div class="metric"><div class="metric-label">質押月利息</div><div class="metric-value" id="summary_pledge">NT$0</div></div>
-      <div class="metric"><div class="metric-label">信貸月利息</div><div class="metric-value" id="summary_credit">NT$0</div></div>
-      <div class="metric"><div class="metric-label">合計月利息</div><div class="metric-value" id="summary_total" style="color:#185FA5;font-size:17px;">NT$0</div></div>
+      <div class="metric"><div class="metric-label">信貸月付（本＋利）</div><div class="metric-value" id="summary_credit">NT$0</div></div>
+      <div class="metric"><div class="metric-label">合計月支出</div><div class="metric-value" id="summary_total" style="color:#185FA5;font-size:17px;">NT$0</div></div>
       <div class="metric"><div class="metric-label">債務支出 vs 月薪</div><div class="metric-value" id="interest_ratio">0%</div></div>
     </div>
+    <div style="font-size:11px;color:#73726c;padding-top:4px;">房貸／質押只算利息（本金另計還款），信貸算本利攤還月付，因為信貸本金也是每月真實現金負擔</div>
   </div>
 
   <div class="section">
@@ -1474,10 +1475,11 @@ function calc() {
     calert.textContent = '已繳 ' + k + ' / 84 期 · 後 5 年階段，剩 ' + (CREDIT_TOTAL_MONTHS - k) + ' 期繳完';
   }
 
-  const total_monthly = monthly + pledge_monthly + credit_monthly_interest;
+  // 信貸這欄算本利攤還月付（不是只有利息），才是真實現金負擔，跟下面「每月現金流」一致
+  const total_monthly = monthly + pledge_monthly + credit_pmt_now;
   document.getElementById('summary_loan').textContent = fmt(monthly);
   document.getElementById('summary_pledge').textContent = fmt(pledge_monthly);
-  document.getElementById('summary_credit').textContent = fmt(credit_monthly_interest);
+  document.getElementById('summary_credit').textContent = fmt(credit_pmt_now);
   document.getElementById('summary_total').textContent = fmt(total_monthly);
 
   // ── 每月現金流 ──
