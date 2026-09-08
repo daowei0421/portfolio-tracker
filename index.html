@@ -186,6 +186,11 @@
       <span style="font-size:13px;font-weight:500;color:#1a1a18;">股票市值</span>
       <span style="font-size:18px;font-weight:600;color:#1a1a18;" id="total_assets">NT$0</span>
     </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
+      <span style="font-size:13px;font-weight:500;color:#1a1a18;">投資組合 Beta</span>
+      <span style="font-size:18px;font-weight:600;color:#1a1a18;" id="portfolio_beta">—</span>
+    </div>
+    <div style="font-size:11px;color:#73726c;padding-top:2px;">以 00662 beta≈1、00670L（正2）beta≈2 相對 NASDAQ-100 估算，按目前市值比例加權；槓桿 ETF 長期實際值會因複利耗損略低於 2</div>
   </div>
 
   <div class="section">
@@ -1319,6 +1324,11 @@ function calc() {
   document.getElementById('bar670').style.width = Math.min(pct670, 100) + '%';
   document.getElementById('bar662label').textContent = pct662.toFixed(1) + '%';
   document.getElementById('bar670label').textContent = pct670.toFixed(1) + '%';
+
+  // 投組 Beta：00662（追蹤 NASDAQ-100，未槓桿）beta≈1，00670L（正2）beta≈2，依市值比例加權
+  const BETA_662 = 1, BETA_670L = 2;
+  document.getElementById('portfolio_beta').textContent =
+    total > 0 ? (pct662 / 100 * BETA_662 + pct670 / 100 * BETA_670L).toFixed(2) : '—';
 
   const alertEl = document.getElementById('balance-alert');
   const diff662 = pct662 - 70;
