@@ -773,7 +773,9 @@ function addCostRecord() {
 
   if (!date) { err.textContent = '請填入日期'; return; }
   if (!shares || shares === 0) { err.textContent = '請填入股數（賣出填負數）'; return; }
-  if (!price || price <= 0) { err.textContent = '請填入成交價'; return; }
+  // 成交價可填 0：股票分割、配股這類「股數增加但沒花錢」的情況
+  if (isNaN(price) || price < 0) { err.textContent = '請填入成交價（分割／配股填 0）'; return; }
+  if (price === 0 && shares < 0) { err.textContent = '賣出的成交價不可為 0'; return; }
   err.textContent = '';
 
   _costRecords.push({ id: Date.now().toString(), date, stock, shares, price, auto: false });
@@ -823,7 +825,8 @@ function saveCostEdit(id) {
   const stock = document.getElementById('cedit-stock-' + id).value;
   const shares = parseFloat(document.getElementById('cedit-shares-' + id).value);
   const price = parseFloat(document.getElementById('cedit-price-' + id).value);
-  if (!date || !shares || shares === 0 || !price || price <= 0) { alert('請填入完整資料（股數不可為 0）'); return; }
+  if (!date || !shares || shares === 0 || isNaN(price) || price < 0) { alert('請填入完整資料（股數不可為 0；分割／配股成交價填 0）'); return; }
+  if (price === 0 && shares < 0) { alert('賣出的成交價不可為 0'); return; }
   _costRecords[idx] = { ..._costRecords[idx], date, stock, shares, price, auto: false };
   _costRecords.sort((a, b) => b.date.localeCompare(a.date));
   renderCostRecords();
@@ -865,7 +868,8 @@ function renderCostRecords() {
       ? '<span class="stock-tag stock-662">00662</span>'
       : '<span class="stock-tag stock-670">00670L</span>';
     const isSell = Number(r.shares) < 0;
-    const autoTag = r.auto ? '<span style="font-size:10px;color:#73726c;margin-left:4px;">自動</span>' : '';
+    const autoTag = (r.auto ? '<span style="font-size:10px;color:#73726c;margin-left:4px;">自動</span>' : '')
+      + (Number(r.price) === 0 && Number(r.shares) > 0 ? '<span style="font-size:10px;color:#185FA5;margin-left:4px;">分割／配股</span>' : '');
     html += `<tr id="cost-row-${r.id}">
       <td>${r.date}${autoTag}</td><td>${tag}</td>
       <td style="text-align:right;color:${isSell ? '#A32D2D' : '#1a1a18'};">${Number(r.shares) > 0 ? '+' : ''}${r.shares}</td>
@@ -1099,10 +1103,12 @@ function renderLoanRecords() {
 // ── 主要股價抓取 ──
 // 回推某日的實際持股：現在股數 − 那天之後才買/賣的股數（賣為負，會自動加回）
 // 沒有任何後續交易時 = 現在股數，正好對應「資金沒變動」的情境
+// 分割／配股（成交價 0 的買入）不回推：Yahoo 歷史收盤價已做分割還原，要配分割後的股數才對
 function qtyAsOf(stock, dateStr) {
   const cur = parseFloat(document.getElementById(stock === '662' ? 'qty662' : 'qty670').value) || 0;
   const later = _costRecords
     .filter(r => r.stock === stock && r.date > dateStr)
+    .filter(r => !(Number(r.price) === 0 && Number(r.shares) > 0))
     .reduce((s, r) => s + Number(r.shares), 0);
   return cur - later;
 }
